@@ -1,0 +1,1004 @@
+syntax = "proto3";
+package proto;
+
+option go_package = "./proto";
+
+// NextIndex: 23
+enum Spec {
+	SpecBalanceDruid = 0;
+	SpecFeralDruid = 12;
+	SpecFeralTankDruid = 14;
+	SpecRestorationDruid = 18;
+	SpecElementalShaman = 1;
+	SpecEnhancementShaman = 9;
+	SpecRestorationShaman = 19;
+	SpecWardenShaman = 21;
+	SpecHunter = 8;
+	SpecMage = 2;
+	SpecHolyPaladin = 20;
+	SpecProtectionPaladin = 13;
+	SpecRetributionPaladin = 3;
+	SpecRogue = 7;
+	SpecHealingPriest = 17;
+	SpecShadowPriest = 4;
+	SpecWarlock = 5;
+	SpecWarrior = 6;
+	SpecTankWarrior = 11;
+}
+
+enum Race {
+	RaceUnknown = 0;
+	RaceDwarf = 1;
+	RaceGnome = 2;
+	RaceHuman = 3;
+	RaceNightElf = 4;
+	RaceOrc = 5;
+	RaceTauren = 6;
+	RaceTroll = 7;
+	RaceUndead = 8;
+}
+
+enum Faction {
+	Unknown = 0;
+	Alliance = 1;
+	Horde = 2;
+}
+
+enum Class {
+	ClassUnknown = 0;
+	ClassDruid = 1;
+	ClassHunter = 2;
+	ClassMage = 3;
+	ClassPaladin = 4;
+	ClassPriest = 5;
+	ClassRogue = 6;
+	ClassShaman = 7;
+	ClassWarlock = 8;
+	ClassWarrior = 9;
+}
+
+enum Profession {
+	ProfessionUnknown = 0;
+	Alchemy = 1;
+	Blacksmithing = 2;
+	Enchanting = 3;
+	Engineering = 4;
+	Herbalism = 5;
+	Leatherworking = 8;
+	Mining = 9;
+	Skinning = 10;
+	Tailoring = 11;
+}
+
+// Keep in sync with sim/core/stats/stats.go.
+// NextIndex: 44
+enum Stat {
+	StatStrength = 0;
+	StatAgility = 1;
+	StatStamina = 2;
+	StatIntellect = 3;
+	StatSpirit = 4;
+	StatSpellPower = 5;
+	StatArcanePower = 6;
+	StatFirePower = 7;
+	StatFrostPower = 8;
+	StatHolyPower = 9;
+	StatNaturePower = 10;
+	StatShadowPower = 11;
+	StatMP5 = 12;
+	StatSpellHit = 13;
+	StatSpellCrit = 14;
+	StatSpellHaste = 15;
+	StatSpellPenetration = 16;
+	StatAttackPower = 17;
+	StatMeleeHit = 18;
+	StatMeleeCrit = 19;
+	StatMeleeHaste = 20;
+	StatArmorPenetration = 21;
+	StatExpertise = 22;
+	StatMana = 23;
+	StatEnergy = 24;
+	StatRage = 25;
+	StatArmor = 26;
+	StatRangedAttackPower = 27;
+	StatDefense = 28;
+	StatBlock = 29;
+	StatBlockValue = 30;
+	StatDodge = 31;
+	StatParry = 32;
+	StatResilience = 33;
+	StatHealth = 34;
+	StatArcaneResistance = 35;
+	StatFireResistance = 36;
+	StatFrostResistance = 37;
+	StatNatureResistance = 38;
+	StatShadowResistance = 39;
+	StatBonusArmor = 40;
+	StatHealingPower = 41;
+	StatSpellDamage = 42;
+	StatFeralAttackPower = 43;
+	// DO NOT add new stats here without discussing it first; new stats come with
+	// a performance penalty.
+}
+
+// Not all pseudostats are included here; just the ones we want to pass
+// between the UI and backend.
+//
+// It's also OK to include things here which aren't in the PseudoStats struct.
+// NextIndex: 31
+enum PseudoStat {
+	PseudoStatMainHandDps = 0;
+	PseudoStatOffHandDps = 1;
+	PseudoStatRangedDps = 2;
+	PseudoStatBlockValueMultiplier = 3;
+	PseudoStatDodge = 4;
+	PseudoStatParry = 5;
+	BonusPhysicalDamage = 30;
+
+	// Melee Weapon Skill
+	PseudoStatUnarmedSkill = 6;
+	PseudoStatDaggersSkill = 7;
+	PseudoStatSwordsSkill = 8;
+	PseudoStatMacesSkill = 9;
+	PseudoStatAxesSkill = 10;
+	PseudoStatTwoHandedSwordsSkill = 11;
+	PseudoStatTwoHandedMacesSkill = 12;
+	PseudoStatTwoHandedAxesSkill = 13;
+	PseudoStatPolearmsSkill = 14;
+	PseudoStatStavesSkill = 15;
+
+	// Ranged Weapon Skill
+	PseudoStatBowsSkill = 16;
+	PseudoStatCrossbowsSkill = 17;
+	PseudoStatGunsSkill = 18;
+	PseudoStatThrownSkill = 19;
+
+	PseudoStatFeralCombatSkill = 20;
+
+	// Spell School Hit
+	PseudoStatSchoolHitArcane = 21;
+	PseudoStatSchoolHitFire = 22;
+	PseudoStatSchoolHitFrost = 23;
+	PseudoStatSchoolHitHoly = 24;
+	PseudoStatSchoolHitNature = 25;
+	PseudoStatSchoolHitShadow = 26;
+
+	PseudoStatMeleeSpeedMultiplier = 27;
+	PseudoStatRangedSpeedMultiplier = 28;
+	PseudoStatCastSpeedMultiplier = 34;
+	PseudoStatBlockValuePerStrength = 29;
+}
+
+message UnitStats {
+	repeated double stats = 1;
+	repeated double pseudo_stats = 2;
+}
+
+enum ItemType {
+	ItemTypeUnknown = 0;
+	ItemTypeHead = 1;
+	ItemTypeNeck = 2;
+	ItemTypeShoulder = 3;
+	ItemTypeBack = 4;
+	ItemTypeChest = 5;
+	ItemTypeWrist = 6;
+	ItemTypeHands = 7;
+	ItemTypeWaist = 8;
+	ItemTypeLegs = 9;
+	ItemTypeFeet = 10;
+	ItemTypeFinger = 11;
+	ItemTypeTrinket = 12;
+	ItemTypeWeapon = 13;
+	ItemTypeRanged = 14;
+}
+
+enum ArmorType {
+	ArmorTypeUnknown = 0;
+	ArmorTypeCloth = 1;
+	ArmorTypeLeather = 2;
+	ArmorTypeMail = 3;
+	ArmorTypePlate = 4;
+}
+
+enum WeaponType {
+	WeaponTypeUnknown = 0;
+	WeaponTypeAxe = 1;
+	WeaponTypeDagger = 2;
+	WeaponTypeFist = 3;
+	WeaponTypeMace = 4;
+	WeaponTypeOffHand = 5;
+	WeaponTypePolearm = 6;
+	WeaponTypeShield = 7;
+	WeaponTypeStaff = 8;
+	WeaponTypeSword = 9;
+}
+
+// NextIndex: 16
+enum WeaponSkill {
+	WeaponSkillUnknown = 0;
+	WeaponSkillAxes = 1;
+	WeaponSkillSwords = 2;
+	WeaponSkillMaces = 3;
+	WeaponSkillDaggers = 4;
+	WeaponSkillUnarmed = 5;
+	WeaponSkillTwoHandedAxes = 6;
+	WeaponSkillTwoHandedSwords = 7;
+	WeaponSkillTwoHandedMaces = 8;
+	WeaponSkillPolearms = 9;
+	WeaponSkillStaves = 10;
+	WeaponSkillThrown = 11;
+	WeaponSkillBows = 12;
+	WeaponSkillCrossbows = 13;
+	WeaponSkillGuns = 14;
+	WeaponSkillFeralCombat = 15;
+}
+
+enum HandType {
+	HandTypeUnknown = 0;
+	HandTypeMainHand = 1;
+	HandTypeOneHand = 2;
+	HandTypeOffHand = 3;
+	HandTypeTwoHand = 4;
+}
+
+enum RangedWeaponType {
+	RangedWeaponTypeUnknown = 0;
+	RangedWeaponTypeBow = 1;
+	RangedWeaponTypeCrossbow = 2;
+	RangedWeaponTypeGun = 3;
+	RangedWeaponTypeIdol = 4;
+	RangedWeaponTypeLibram = 5;
+	RangedWeaponTypeThrown = 6;
+	RangedWeaponTypeTotem = 7;
+	RangedWeaponTypeWand = 8;
+	RangedWeaponTypeSigil = 9;
+}
+
+enum CastType {
+	CastTypeUnknown = 0;
+	CastTypeMainHand = 1;
+	CastTypeOffHand = 2;
+	CastTypeRanged = 3;
+}
+
+// All slots on the gear menu where a single item can be worn.
+enum ItemSlot {
+	ItemSlotHead = 0;
+	ItemSlotNeck = 1;
+	ItemSlotShoulder = 2;
+	ItemSlotBack = 3;
+	ItemSlotChest = 4;
+	ItemSlotWrist = 5;
+	ItemSlotHands = 6;
+	ItemSlotWaist = 7;
+	ItemSlotLegs = 8;
+	ItemSlotFeet = 9;
+	ItemSlotFinger1 = 10;
+	ItemSlotFinger2 = 11;
+	ItemSlotTrinket1 = 12;
+	ItemSlotTrinket2 = 13;
+	ItemSlotMainHand = 14; // can be 1h or 2h
+	ItemSlotOffHand = 15;
+	ItemSlotRanged = 16;
+}
+
+enum ItemQuality {
+	ItemQualityJunk = 0;
+	ItemQualityCommon = 1;
+	ItemQualityUncommon = 2;
+	ItemQualityRare = 3;
+	ItemQualityEpic = 4;
+	ItemQualityLegendary = 5;
+	ItemQualityArtifact = 6;
+	ItemQualityHeirloom = 7;
+}
+
+enum SpellSchool {
+	SpellSchoolPhysical = 0;
+	SpellSchoolArcane = 1;
+	SpellSchoolFire = 2;
+	SpellSchoolFrost = 3;
+	SpellSchoolHoly = 4;
+	SpellSchoolNature = 5;
+	SpellSchoolShadow = 6;
+}
+
+enum TristateEffect {
+	TristateEffectMissing = 0;
+	TristateEffectRegular = 1;
+	TristateEffectImproved = 2;
+}
+
+enum SapperExplosive {
+	SapperUnknown = 0;
+	SapperGoblinSapper = 1;
+}
+
+enum Explosive {
+	ExplosiveUnknown = 0;
+	ExplosiveSolidDynamite = 1;
+	ExplosiveDenseDynamite = 2;
+	ExplosiveThoriumGrenade = 3;
+	ExplosiveGoblinLandMine = 4;
+}
+
+// NextIndex: 28
+enum Potions {
+	UnknownPotion = 0;
+
+	// Mana Pots
+	ManaPotion = 2;
+	GreaterManaPotion = 3;
+	SuperiorManaPotion = 4;
+	MajorManaPotion = 5;
+
+	// Rage Pots
+	RagePotion = 6;
+	GreatRagePotion = 7;
+	MightyRagePotion = 8;
+
+	// Armor Pots
+	LesserStoneshieldPotion = 9;
+	GreaterStoneshieldPotion = 10;
+
+	// Healing Pots
+	LesserHealingPotion = 11;
+	HealingPotion = 12;
+	GreaterHealingPotion = 13;
+	SuperiorHealingPotion = 14;
+	MajorHealingPotion = 15;
+
+	// Resistance Pots
+	MagicResistancePotion = 16;
+	GreaterArcaneProtectionPotion = 17;
+	GreaterFireProtectionPotion = 18;
+	GreaterFrostProtectionPotion = 19;
+	GreaterHolyProtectionPotion = 20;
+	GreaterNatureProtectionPotion = 21;
+	GreaterShadowProtectionPotion = 22;
+
+	LesserManaPotion = 1 [deprecated = true];
+}
+
+enum Conjured {
+	ConjuredUnknown = 0;
+	ConjuredMinorRecombobulator = 1;
+	ConjuredDemonicRune = 2;
+	ConjuredRogueThistleTea = 3;
+
+	ConjuredHealthstone = 4;
+	ConjuredGreaterHealthstone = 5;
+	ConjuredMajorHealthstone = 6;
+}
+
+enum Flask {
+	FlaskUnknown = 0;
+	FlaskOfTheTitans = 1;
+	FlaskOfDistilledWisdom = 2;
+	FlaskOfSupremePower = 3;
+	FlaskOfChromaticResistance = 4;
+}
+
+enum Alcohol {
+	AlcoholUnknown = 0;
+	AlcoholRumseyRumBlackLabel = 1;
+	AlcoholGordokGreenGrog = 2;
+	AlcoholRumseyRumDark = 3;
+	AlcoholRumseyRumLight = 4;
+	AlcoholKreegsStoutBeatdown = 5;
+}
+
+enum AgilityElixir {
+	AgilityElixirUnknown = 0;
+	ElixirOfTheMongoose = 1;
+	ElixirOfGreaterAgility = 2;
+	ElixirOfLesserAgility = 3;
+	ScrollOfAgility = 4;
+	ElixirOfAgility = 5;
+}
+
+enum ArmorElixir {
+	ArmorElixirUnknown = 0;
+	ElixirOfSuperiorDefense = 1;
+	ElixirOfGreaterDefense = 2;
+	ElixirOfDefense = 3;
+	ElixirOfMinorDefense = 4;
+	ScrollOfProtection = 5;
+}
+
+enum HealthElixir {
+	HealthElixirUnknown = 0;
+	ElixirOfFortitude = 1;
+	ElixirOfMinorFortitude = 2;
+}
+
+enum ManaRegenElixir {
+	ManaRegenElixirUnknown = 0;
+	MagebloodPotion = 1;
+}
+
+enum StrengthBuff {
+	StrengthBuffUnknown = 0;
+	JujuPower = 1;
+	ElixirOfGiants = 2;
+	ElixirOfOgresStrength = 3;
+	ScrollOfStrength = 4;
+}
+
+enum AttackPowerBuff {
+	AttackPowerBuffUnknown = 0;
+	JujuMight = 1;
+	WinterfallFirewater = 2;
+}
+
+enum SpellPowerBuff {
+	SpellPowerBuffUnknown = 0;
+	ArcaneElixir = 1;
+	GreaterArcaneElixir = 2;
+	LesserArcaneElixir = 3 [deprecated=true];
+}
+
+enum ShadowPowerBuff {
+	ShadowPowerBuffUnknown = 0;
+	ElixirOfShadowPower = 1;
+}
+
+enum FirePowerBuff {
+	FirePowerBuffUnknown = 0;
+	ElixirOfFirepower = 1;
+	ElixirOfGreaterFirepower = 2;
+}
+
+enum FrostPowerBuff {
+	FrostPowerBuffUnknown = 0;
+	ElixirOfFrostPower = 1;
+}
+
+enum ZanzaBuff {
+	ZanzaBuffUnknown = 0;
+	SpiritOfZanza = 1;
+	SheenOfZanza = 2;
+	SwiftnessOfZanza = 3;
+	ROIDS = 4;
+	GroundScorpokAssay = 5;
+	CerebralCortexCompound = 6;
+	GizzardGum = 7;
+	LungJuiceCocktail = 8;
+	DarnassusGiftCollection = 9;
+}
+
+enum HitConsumable {
+	HitConsumableUnknown = 0;
+	FireToastedBun = 1;
+	DarkDesire = 2;
+}
+
+message MiscConsumes {
+	bool bogling_root = 1;
+	bool juju_ember = 2;
+	bool juju_chill = 3;
+	bool juju_escape = 4;
+	bool juju_flurry = 5;
+	bool raptor_punch = 6;
+}
+
+message PetMiscConsumes {
+	bool juju_flurry = 1;
+}
+
+// NextIndex: 25
+enum WeaponImbue {
+	// Weapon Oils
+	WeaponImbueUnknown = 0;
+
+	// Oils
+	MinorWizardOil = 13;
+	LesserWizardOil = 14;
+	WizardOil = 20;
+	BrilliantWizardOil = 2;
+	BlessedWizardOil = 24;
+
+	MinorManaOil = 15;
+	LesserManaOil = 16;
+	BrilliantManaOil = 1;
+
+	// Sharpening Stones
+	SolidSharpeningStone = 17;
+	DenseSharpeningStone = 3;
+	ElementalSharpeningStone = 4;
+	ConsecratedSharpeningStone = 23;
+
+	// Weightstones
+	SolidWeightstone = 18;
+	DenseWeightstone = 19;
+
+	// Spell Oils
+	ShadowOil = 21;
+	FrostOil = 22;
+
+	// Windfury Imbues
+	Windfury = 8;
+
+	// Shaman imbues
+	RockbiterWeapon = 9;
+	FlametongueWeapon = 10;
+	FrostbrandWeapon = 11;
+	WindfuryWeapon = 12;
+
+	// Rogue imbues
+	InstantPoison = 5;
+	DeadlyPoison = 6;
+	WoundPoison = 7;
+}
+
+// NextIndex: 13
+enum Food {
+	FoodUnknown = 0;
+	FoodGrilledSquid = 1;
+	FoodSmokedDesertDumpling = 2;
+	FoodNightfinSoup = 3;
+	FoodRunnTumTuberSurprise = 4;
+	FoodDirgesKickChimaerokChops = 5;
+	FoodBlessedSunfruitJuice = 6;
+	FoodBlessSunfruit = 7;
+	FoodHotWolfRibs = 8;
+	FoodTenderWolfSteak = 9;
+	FoodSmokedSagefish = 10;
+	FoodSagefishDelight = 11;
+}
+
+enum SaygesFortune {
+	SaygesUnknown = 0;
+	SaygesDamage = 1;
+	SaygesAgility = 2;
+	SaygesIntellect = 3;
+	SaygesStamina = 4;
+	SaygesSpirit = 5;
+}
+
+// Buffs that affect the entire raid.
+// NextIndex: 40
+message RaidBuffs {
+	reserved 36, 37, 38, 39;
+	reserved "atiesh_druid", "atiesh_mage", "atiesh_priest", "atiesh_warlock";
+
+	// +Stats
+	TristateEffect gift_of_the_wild = 1;
+
+	// +Stam
+	TristateEffect power_word_fortitude = 2;
+
+	// +Health
+	TristateEffect blood_pact = 3;
+
+	// +Str
+	TristateEffect strength_of_earth_totem = 4; // none, normal, 15% improved
+
+	// +Agi
+	TristateEffect grace_of_air_totem = 5; // none, normal, 15% improved
+
+	// +Intell and/or Spi
+	bool arcane_brilliance = 6;
+	bool divine_spirit = 7;
+
+	// +AP
+	TristateEffect battle_shout = 8; // none, normal, 25% improved
+
+	// AP+
+	bool trueshot_aura = 9;
+	bool furious_howl = 11;
+
+	// Crit
+	bool leader_of_the_pack = 12;
+	bool moonkin_aura = 13;
+
+	// mp5
+	TristateEffect mana_spring_totem = 14;
+	TristateEffect blessing_of_wisdom = 15;
+
+	// Resistances
+	bool shadow_protection = 16;
+	bool shadow_resistance_aura = 35;
+	bool nature_resistance_totem = 17;
+	bool aspect_of_the_wild = 18;
+	bool frost_resistance_aura = 19;
+	bool frost_resistance_totem = 20;
+	bool fire_resistance_totem = 21;
+	bool fire_resistance_aura = 32;
+
+	// Scroll
+	bool scroll_of_protection = 26;
+	bool scroll_of_stamina = 27;
+	bool scroll_of_strength = 28;
+	bool scroll_of_agility = 29;
+	bool scroll_of_intellect = 30;
+	bool scroll_of_spirit = 31;
+
+	// Miscellaneous
+	TristateEffect thorns = 22;
+	TristateEffect devotion_aura = 23;
+	TristateEffect stoneskin_totem = 24;
+	TristateEffect retribution_aura = 25;
+	bool sanctity_aura = 33;
+	int32 battle_squawk = 34;
+}
+
+// Buffs that affect a single party.
+message PartyBuffs {
+	// Item Buffs
+	int32 atiesh_mage = 1;
+	int32 atiesh_warlock = 2;
+	int32 atiesh_druid = 4;
+	int32 atiesh_priest = 5;
+
+	// Group buffs
+	int32 mana_tide_totems = 3;
+}
+
+// These are usually individual actions taken by other Characters.
+// NextIndex: 16
+message IndividualBuffs {
+	reserved 15;
+	reserved "dragonslayer_buff";
+
+	bool blessing_of_kings = 1;
+	TristateEffect blessing_of_wisdom = 2;
+	TristateEffect blessing_of_might = 3;
+	bool blessing_of_sanctuary = 4;
+	int32 innervates = 5;
+	int32 power_infusions = 6;
+
+	// World Buffs
+	bool rallying_cry_of_the_dragonslayer = 7;
+
+	SaygesFortune sayges_fortune = 8;
+	bool spirit_of_zandalar = 9;
+	bool songflower_serenade = 10;
+	bool warchiefs_blessing = 11;
+
+	// Dire Maul Buffs
+	bool fengus_ferocity = 12;
+	bool moldars_moxie = 13;
+	bool slipkiks_savvy = 14;
+}
+
+// NextIndex: 34
+message Consumes {
+	Flask flask = 1;
+	Food food = 2;
+	AgilityElixir agility_elixir = 3;
+	ManaRegenElixir mana_regen_elixir = 4;
+	StrengthBuff strength_buff = 5;
+	AttackPowerBuff attack_power_buff = 6;
+	SpellPowerBuff spell_power_buff = 7;
+	ShadowPowerBuff shadow_power_buff = 8;
+	FirePowerBuff fire_power_buff = 9;
+	FrostPowerBuff frost_power_buff = 10;
+	Explosive filler_explosive = 11;
+	WeaponImbue main_hand_imbue = 12;
+	WeaponImbue off_hand_imbue = 13;
+	Potions default_potion = 14;
+	Conjured default_conjured = 15;
+	bool bogling_root = 16 [deprecated=true];
+	int32 pet_agility_consumable = 17;
+	int32 pet_strength_consumable = 18;
+	bool dragon_breath_chili = 19;
+	MiscConsumes misc_consumes = 20;
+	ZanzaBuff zanza_buff = 21;
+	ArmorElixir armor_elixir = 22;
+	HealthElixir health_elixir = 23;
+	Alcohol alcohol = 24;
+	int32 pet_attack_power_consumable = 25;
+	PetMiscConsumes pet_misc_consumes = 27;
+	SapperExplosive sapper_explosive = 28;
+	HitConsumable hit_consumable = 29;
+}
+
+// NextIndex: 26
+message Debuffs {
+	bool judgement_of_wisdom = 1;
+	bool judgement_of_light = 2;
+	TristateEffect judgement_of_the_crusader = 25;
+	bool faerie_fire = 3;
+
+	// Warlock Spell DamageCurses
+	bool curse_of_elements = 4;
+	bool curse_of_shadow = 5;
+
+	bool winters_chill = 6;
+
+	bool improved_shadow_bolt = 7;
+
+	bool improved_scorch = 8;
+	bool shadow_weaving = 22;
+	bool stormstrike = 23;
+
+	// Major armor
+	TristateEffect expose_armor = 10;
+	bool sunder_armor = 11;
+
+	TristateEffect curse_of_weakness = 12;
+	bool curse_of_recklessness = 13;
+
+	TristateEffect demoralizing_roar = 14;
+	TristateEffect demoralizing_shout = 15;
+
+	TristateEffect thunder_clap = 16;
+	bool thunderfury = 24;
+
+	bool insect_swarm = 17;
+	bool scorpid_sting = 18;
+
+	TristateEffect hunters_mark = 19;
+
+	// Misc Debuffs
+	bool gift_of_arthas = 9;
+	bool crystal_yield = 20;
+}
+
+enum MobType {
+	MobTypeUnknown = 0;
+	MobTypeBeast = 1;
+	MobTypeDemon = 2;
+	MobTypeDragonkin = 3;
+	MobTypeElemental = 4;
+	MobTypeGiant = 5;
+	MobTypeHumanoid = 6;
+	MobTypeMechanical = 7;
+	MobTypeUndead = 8;
+}
+
+enum InputType {
+	Bool = 0;
+	Number = 1;
+	Enum = 2;
+}
+
+message TargetInput {
+	InputType input_type = 1;
+	string label = 2;
+	string tooltip = 5;
+
+	bool bool_value = 3;
+	double number_value = 4;
+
+	int32 enum_value = 6;
+	repeated string enum_options = 7;
+}
+
+message Target {
+	// The in-game NPC ID.
+	int32 id = 1;
+	string name = 2;
+
+	int32 level = 3;
+	MobType mob_type = 4;
+	repeated double stats = 5;
+
+	// Auto attack parameters.
+	double min_base_damage = 6;
+	double damage_spread = 7; // replaces tight_enemy_damage
+	double swing_speed = 8;
+	bool dual_wield = 9;
+	bool dual_wield_penalty = 10;
+	bool parry_haste = 11;
+	SpellSchool spell_school = 12; // Allows elemental attacks.
+
+	// Index in Raid.tanks indicating the player tanking this mob.
+	// -1 or invalid index indicates not being tanked.
+	int32 tank_index = 13;
+
+	// Custom Target AI parameters
+	repeated TargetInput target_inputs = 14;
+}
+
+message Encounter {
+	double duration = 1;
+
+	// Variation in the duration
+	double duration_variation = 2;
+
+	// The ratio of the encounter duration, between 0 and 1, for which the targets
+	// will be in execute range (<= 20%) for the purposes of Warrior Execute, Mage Molten
+	// Fury, etc.
+	double execute_proportion_20 = 3;
+
+	// Key for Affliction warlock Drain Soul
+	double execute_proportion_25 = 7;
+
+	// Same as execute_proportion but for 35%.
+	double execute_proportion_35 = 4;
+
+	// If set, will use the targets health value instead of a duration for fight length.
+	bool use_health = 5;
+
+	// If type != Simple or Custom, then this may be empty.
+	repeated Target targets = 6;
+}
+
+message PresetTarget {
+	string path = 1;
+	Target target = 2;
+}
+message PresetEncounter {
+	string path = 1;
+	repeated PresetTarget targets = 2;
+}
+
+message ItemRandomSuffix {
+	int32 id = 1;
+	string name = 2;
+	repeated double stats = 3;
+}
+
+message ItemSpec {
+	int32 id = 2;
+	int32 random_suffix = 6;
+	int32 enchant = 3;
+}
+
+message EquipmentSpec {
+	repeated ItemSpec items = 1;
+}
+
+message SimDatabase {
+	repeated SimItem items = 1;
+	repeated ItemRandomSuffix random_suffixes = 5;
+	repeated SimEnchant enchants = 2;
+}
+
+// Contains only the Item info needed by the sim.
+// NextIndex: 20
+message SimItem {
+	int32 id = 1;
+	repeated Class class_allowlist = 17;
+	string name = 2;
+
+	ItemType type = 3;
+	ArmorType armor_type = 4;
+	WeaponType weapon_type = 5;
+	HandType hand_type = 6;
+	RangedWeaponType ranged_weapon_type = 7;
+
+	repeated double stats = 8;
+
+	double weapon_damage_min = 11;
+	double weapon_damage_max = 12;
+	double weapon_speed = 13;
+	double bonus_physical_damage = 19;
+
+	string set_name = 14;
+	int32 set_id = 18;
+	repeated double weapon_skills = 15;
+}
+
+// Extra enum for describing which items are eligible for an enchant, when
+// ItemType alone is not enough.
+enum EnchantType {
+	EnchantTypeNormal = 0;
+	EnchantTypeTwoHand = 1;
+	EnchantTypeShield = 2;
+	EnchantTypeKit = 3;
+	EnchantTypeStaff = 4;
+}
+
+// Contains only the Enchant info needed by the sim.
+message SimEnchant {
+	int32 effect_id = 1;
+	repeated double stats = 2;
+}
+
+message UnitReference {
+	enum Type {
+		Unknown = 0;
+		Player = 1;
+		Target = 2;
+		Pet = 3;
+		Self = 4;
+		CurrentTarget = 5;
+		AllPlayers = 6;
+		AllTargets = 7;
+	}
+
+	// The type of unit being referenced.
+	Type type = 2;
+
+	// Index of the player/target/pet/etc depending on value of type.
+	int32 index = 3;
+
+	// Reference to the owner, only used iff this is a pet.
+	UnitReference owner = 4;
+}
+
+// ID for actions that aren't spells or items.
+enum OtherAction {
+	OtherActionNone = 0;
+	OtherActionWait = 1;
+	OtherActionManaRegen = 2;
+	OtherActionEnergyRegen = 3;
+	OtherActionFocusRegen = 4;
+	OtherActionManaGain = 5; // For threat generated from mana gains.
+	OtherActionRageGain = 6; // For threat generated from rage gains.
+	OtherActionAttack = 7; // A white hit, can be main hand or off hand.
+	OtherActionShoot = 8; // Default shoot action using a wand/bow/gun.
+	OtherActionPet = 9; // Represents a grouping of all pet actions. Only used by the UI.
+	OtherActionRefund = 10; // Refund of a resource like Energy or Rage, when the ability didn't land.
+	OtherActionDamageTaken = 11; // Indicates damage taken; used for rage gen.
+	OtherActionHealingModel = 12; // Indicates healing received from healing model.
+	OtherActionPotion = 13; // Used by APL to generically refer to either the prepull or combat potion.
+	OtherActionMove = 14; // Used by movement to be able to show it in timeline
+	OtherActionComboPoints = 15; // Used by APL to generically add Combo Points.
+	OtherActionExplosives = 16; // Used by APL to generically refer to engineering explosives
+	OtherActionOffensiveEquip = 17; // Used by APL to generally refer to offensive on-use equipment
+	OtherActionDefensiveEquip = 18; // Used by APL to generally refer to defensive on-use equipment
+}
+
+message ActionID {
+	// Identifies this action.
+	oneof raw_id {
+		int32 spell_id = 1;
+		int32 item_id = 2;
+		OtherAction other_id = 3;
+	}
+
+	// Distinguishes between different versions of the same action.
+	// Currently the only use for this is Shaman Lightning Overload.
+	int32 tag = 4;
+	// Various ranks of spells
+	int32 rank = 5;
+}
+
+// Custom options for a particular cooldown.
+message Cooldown {
+	// Identifies the cooldown to which these settings will apply.
+	ActionID id = 1;
+
+	// Fixed times at which to use this cooldown. Each value corresponds to a usage,
+	// e.g. first value is the first usage, second value is the second usage.
+	// Any usages after the specified timings will occur as soon as possible, subject
+	// to the ShouldActivate() condition.
+	repeated double timings = 2;
+}
+
+message Cooldowns {
+	repeated Cooldown cooldowns = 1;
+
+	// % HP threshold, below which defensive cooldowns can be used.
+	double hp_percent_for_defensives = 2;
+}
+
+message HealingModel {
+	// Healing per second to apply.
+	double hps = 1;
+	// How often healing is applied.
+	double cadence_seconds = 2;
+	// Variation in the cadence.
+	double cadence_variation = 5;
+	// % Inspiration buff uptime
+	double inspiration_uptime = 3;
+	// TMI burst window bin size
+	int32 burst_window = 4;
+}
+
+message CustomRotation {
+	repeated CustomSpell spells = 1;
+}
+
+message CustomSpell {
+	// This should usually be a spec-specific enum value.
+	int32 spell = 1;
+
+	// Desired cast rate for this spell. Not used by most custom rotations, this is
+	// primarily for healers.
+	double casts_per_minute = 2;
+}
+
+message ItemSwap {
+	ItemSpec mh_item = 1;
+	ItemSpec oh_item = 2;
+	ItemSpec ranged_item = 3;
+}
+
+message Duration {
+	double ms = 1;
+}

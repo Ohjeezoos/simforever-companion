@@ -1,0 +1,71 @@
+name: Build companion
+
+on:
+  push:
+    branches: [main]
+  pull_request:
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+jobs:
+  check:
+    runs-on: ubuntu-24.04
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-go@v5
+        with:
+          go-version-file: go.mod
+      - uses: actions/setup-python@v5
+        with:
+          python-version: '3.13'
+      - name: Parser and upload worker tests
+        run: go test ./platform/companion/... ./platform/probe/... ./platform/ingest/...
+      - name: Packaging tests
+        run: |
+          python3 companion/test_addon_payload.py
+          python3 companion/test_publish.py
+          python3 addon/test-package.py
+      - name: Addon tests
+        run: |
+          sudo apt-get update -qq
+          sudo apt-get install -y lua5.4
+          cd addon
+          lua5.4 test-harness.lua
+
+  build:
+    strategy:
+      fail-fast: false
+      matrix:
+        include:
+          - {target: linux-amd64, runner: ubuntu-24.04}
+          - {target: windows-amd64, runner: windows-latest, msvc: amd64}
+          - {target: windows-arm64, runner: windows-11-arm, msvc: arm64}
+          - {target: darwin-amd64, runner: macos-15-intel}
+          - {target: darwin-arm64, runner: macos-15}
+    runs-on: ${{ matrix.runner }}
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-go@v5
+        with:
+          go-version-file: go.mod
+      - uses: actions/setup-python@v5
+        with:
+          python-version: '3.13'
+      - uses: ilammy/msvc-dev-cmd@v1
+        if: runner.os == 'Windows'
+        with:
+          arch: ${{ matrix.msvc }}
+      - name: Linux dependencies
+        if: runner.os == 'Linux'
+        run: sudo apt-get update -qq && sudo apt-get install -y libcurl4-openssl-dev libssl-dev
+      - name: Build and test native bundle
+        env:
+          TARGET: ${{ matrix.target }}
+        shell: bash
+        run: python companion/build.py --version "$(cat companion/VERSION)" --target "$TARGET" --out dist
+      - uses: actions/upload-artifact@v4
+        with:
+          name: companion-${{ matrix.target }}
+          path: dist/

@@ -1,0 +1,16 @@
+/dist/
+__pycache__/
+*.pyc
+*.obj
+*.res
+/companion/probe_payload.h
+/companion/ui_payload.h
+.env
+.env.*
+config.json
+state.json
+capture-consent.json
+desktop-settings.json
+account.json
+recordings/
+*.exe

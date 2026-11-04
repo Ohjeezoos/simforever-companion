@@ -1,0 +1,9 @@
+* text=auto eol=lf
+*.ico binary
+*.lib binary
+companion/vendor/** -text
+addon/SimforeverProbe/** -text
+platform/**/testdata/** -text
+licenses/** -text
+companion/licenses/** -text
+proto/common.proto -text

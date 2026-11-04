@@ -1,0 +1,189 @@
+<!doctype html>
+<meta charset="utf-8">
+<title>Simforever Companion</title>
+<style>
+  /* The site's own tokens, so the program a player installs and the pages they
+     read it about are recognisably the same thing. */
+  :root {
+    --dusk: #0a1b2c; --dusk-raised: #0f2740; --dusk-line: #1b3a58;
+    --night: #05101c; --teal-bright: #3f8fbd;
+    --brass: #c08a45; --brass-dim: #7d5a2e;
+    --frame: #2c4d6b; --ink: #dfe6ee; --mist: #91a8bd;
+    --good: #6fd08c; --warn: #e7c168; --bad: #ef7a6a;
+  }
+  * { box-sizing: border-box; }
+  html, body { height: 100%; }
+  body {
+    margin: 0; color: var(--ink);
+    font: 14px/1.55 "Segoe UI", system-ui, sans-serif;
+    background: radial-gradient(120% 80% at 50% 0%, #10293f 0%, var(--dusk) 45%, var(--night) 100%);
+    display: flex; flex-direction: column;
+    user-select: none; cursor: default; overflow: hidden;
+  }
+  header {
+    padding: 16px 24px 14px; border-bottom: 1px solid var(--dusk-line);
+    display: flex; align-items: baseline; gap: 10px;
+  }
+  header h1 { margin: 0; font-size: 15px; font-weight: 600; color: var(--brass); letter-spacing: .02em; }
+  header .v { font-size: 12px; color: var(--mist); }
+
+  /* The whole point of the window: one sentence, big enough to read across a
+     desk, that says whether it is working. */
+  main {
+    flex: 1; min-height: 0; display: flex; flex-direction: column;
+    align-items: center; justify-content: center; gap: 14px; padding: 20px 28px;
+    text-align: center;
+  }
+  .ring { width: 54px; height: 54px; position: relative; flex: none; }
+  .ring i {
+    position: absolute; inset: 0; border-radius: 50%;
+    border: 2px solid var(--frame); border-top-color: var(--brass);
+    animation: spin 1.1s linear infinite;
+  }
+  .ring.still i { animation: none; border-top-color: var(--frame); }
+  .ring.good i { animation: none; border-color: var(--good); }
+  .ring.bad i  { animation: none; border-color: var(--bad); }
+  .ring svg { position: absolute; inset: 0; margin: auto; display: none; }
+  .ring.good svg.tick, .ring.bad svg.cross { display: block; }
+  @keyframes spin { to { transform: rotate(360deg); } }
+
+  #headline { font-size: 19px; font-weight: 600; color: var(--ink); }
+  #sub { font-size: 13px; color: var(--mist); max-width: 52ch; }
+
+  /* Everything else is behind a word, because nobody installing this wants a
+     running commentary. */
+  #detailWrap { width: 100%; max-width: 520px; }
+  #toggle {
+    background: none; border: 0; padding: 4px; color: var(--mist);
+    font: inherit; font-size: 12px; cursor: pointer; text-decoration: underline;
+    text-underline-offset: 3px;
+  }
+  #toggle:hover { color: var(--teal-bright); }
+  #log {
+    display: none; margin-top: 10px; max-height: 190px; overflow-y: auto;
+    padding: 12px 14px; text-align: left;
+    background: rgba(5,16,28,.55); border: 1px solid var(--frame); border-radius: 8px;
+    font-size: 12px; color: var(--mist); user-select: text; cursor: auto;
+    scrollbar-width: thin; scrollbar-color: var(--frame) transparent;
+  }
+  #log.open { display: block; }
+  #log p { margin: 0 0 5px; }
+  #log h2 { margin: 2px 0 8px; font-size: 13px; color: var(--brass); font-weight: 600; }
+  #log ul { margin: 0 0 8px; padding-left: 18px; }
+
+  footer {
+    padding: 14px 24px 18px; border-top: 1px solid var(--dusk-line);
+    display: flex; align-items: center; gap: 14px;
+  }
+  footer .note { font-size: 12px; color: var(--mist); }
+  .spacer { flex: 1; }
+  button.act {
+    font: inherit; font-size: 13px; padding: 9px 18px; border-radius: 7px;
+    border: 1px solid var(--frame); background: rgba(15,39,64,.8); color: var(--ink);
+    cursor: pointer; white-space: nowrap; flex: none;
+    transition: background .12s, border-color .12s;
+  }
+  button.act:hover { background: rgba(28,66,101,.9); border-color: var(--teal-bright); }
+  button.primary {
+    background: linear-gradient(180deg, var(--brass) 0%, var(--brass-dim) 100%);
+    border-color: var(--brass); color: #1b1206; font-weight: 600;
+  }
+  button.primary:hover { filter: brightness(1.08); }
+  button[hidden] { display: none; }
+</style>
+
+<header>
+  <h1>Simforever Companion</h1><span class="v" id="version"></span>
+</header>
+
+<main>
+  <div class="ring still" id="ring">
+    <i></i>
+    <svg class="tick" width="24" height="24" viewBox="0 0 24 24" fill="none"
+         stroke="#6fd08c" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round">
+      <path d="M4 12.5l5 5L20 6.5"/></svg>
+    <svg class="cross" width="22" height="22" viewBox="0 0 24 24" fill="none"
+         stroke="#ef7a6a" stroke-width="2.5" stroke-linecap="round">
+      <path d="M6 6l12 12M18 6L6 18"/></svg>
+  </div>
+  <div id="headline">Starting</div>
+  <div id="sub"></div>
+  <div id="detailWrap">
+    <button id="toggle">Details</button>
+    <div id="log"></div>
+  </div>
+</main>
+
+<footer>
+  <span class="note" id="note"></span>
+  <span class="spacer"></span>
+  <button id="agree" class="act primary" hidden>Start syncing</button>
+  <button id="close" class="act">Close</button>
+</footer>
+
+<script>
+  const log = document.getElementById('log');
+  const ring = document.getElementById('ring');
+
+  function line(text, cls) {
+    const p = document.createElement('p');
+    if (cls) p.className = cls;
+    p.textContent = text;
+    log.appendChild(p);
+    log.scrollTop = log.scrollHeight;
+  }
+  // The notice is a document, not a running commentary, so it is laid out as
+  // one: a lead-in is a paragraph and the lines under it are a list.
+  function notice(text) {
+    log.innerHTML = '';
+    if (!text) return;
+    for (const para of text.split(/\n\s*\n/)) {
+      const raw = para.split('\n').filter(l => l.trim());
+      if (!raw.length) continue;
+      let prose = [], items = null;
+      for (const l of raw) {
+        const t = l.trim();
+        if (t.startsWith('- ')) { (items = items || []).push(t.slice(2)); }
+        else if (items && /^\s{2,}/.test(l)) { items[items.length - 1] += ' ' + t; }
+        else if (items) { flush(prose, items); prose = [t]; items = null; }
+        else prose.push(t);
+      }
+      flush(prose, items);
+    }
+    log.scrollTop = 0;
+    function flush(prose, items) {
+      if (prose.length) {
+        const head = prose.join(' ');
+        const one = prose.length === 1 && head.endsWith(':');
+        const el = document.createElement(one ? 'h2' : 'p');
+        el.textContent = one ? head.replace(/:$/, '') : head;
+        log.appendChild(el);
+      }
+      if (items) {
+        const ul = document.createElement('ul');
+        for (const it of items) { const li = document.createElement('li'); li.textContent = it; ul.appendChild(li); }
+        log.appendChild(ul);
+      }
+    }
+  }
+  // state: "" spinning, "good", "bad", "still"
+  function state(headline, sub, kind) {
+    document.getElementById('headline').textContent = headline;
+    document.getElementById('sub').textContent = sub || '';
+    ring.className = 'ring' + (kind ? ' ' + kind : '');
+  }
+  function note(text) { document.getElementById('note').textContent = text || ''; }
+  function showAgree(on) {
+    document.getElementById('agree').hidden = !on;
+    if (on) openDetails(true);
+  }
+  function setVersion(v) { document.getElementById('version').textContent = v; }
+  function openDetails(on) {
+    log.classList.toggle('open', on);
+    document.getElementById('toggle').textContent = on ? 'Hide details' : 'Details';
+  }
+
+  document.getElementById('toggle').onclick = () => openDetails(!log.classList.contains('open'));
+  document.getElementById('agree').onclick = () => { showAgree(false); openDetails(false); window.agree(); };
+  document.getElementById('close').onclick = () => window.quit();
+</script>

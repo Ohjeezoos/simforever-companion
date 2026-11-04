@@ -1,0 +1,288 @@
+
+SimforeverProbeDB = {
+	["version"] = "0.1.0",
+	["recording"] = true,
+	["build"] = {
+		["version"] = "1.15.9",
+		["build"] = "69722",
+		["toc"] = 11509,
+	},
+	["character"] = {
+		["name"] = "Emberlash",
+		["realm"] = "Forever",
+		["guid"] = "Player-4372-0000BBBB",
+		["class"] = "MAGE",
+		["className"] = "Mage",
+		["race"] = "Gnome",
+		["raceName"] = "Gnome",
+		["level"] = 60,
+		["faction"] = "Alliance",
+		["talents"] = "2050030152201351-05-0500001",
+		["recordedAt"] = 1758067200,
+		["build"] = {
+			["version"] = "1.15.9",
+			["build"] = "69722",
+			["toc"] = 11509,
+		},
+	},
+	["notes"] = {
+	},
+	["ratings"] = {
+		["spellCrit"] = {
+			["14"] = {
+				["percent"] = 1,
+				["level"] = 60,
+				["at"] = 1758067200,
+			},
+			["28"] = {
+				["percent"] = 2,
+				["level"] = 60,
+				["at"] = 1758067260,
+			},
+			["77"] = {
+				["percent"] = 5.5,
+				["level"] = 60,
+				["at"] = 1758067320,
+			},
+		},
+		["spellHit"] = {
+			["8"] = {
+				["percent"] = 0.63492063492063,
+				["level"] = 60,
+				["at"] = 1758067200,
+			},
+		},
+		["meleeHaste"] = {
+			["10"] = {
+				["percent"] = 1,
+				["level"] = 60,
+				["at"] = 1758067200,
+			},
+			["20"] = {
+				["percent"] = 4,
+				["level"] = 60,
+				["at"] = 1758067260,
+			},
+		},
+	},
+	["items"] = {
+		["item:12640:0:0:0:0:0:0:0:60:0:0:0"] = {
+			["name"] = "Lionheart Helm",
+			["quality"] = 4,
+			["ilvl"] = 63,
+			["at"] = 1758067200,
+			["stats"] = {
+				["ITEM_MOD_STRENGTH_SHORT"] = 18,
+				["ITEM_MOD_CRIT_RATING_SHORT"] = 28,
+				["ITEM_MOD_HIT_RATING_SHORT"] = 14,
+				["RESISTANCE0_NAME"] = 605,
+			},
+		},
+		["item:19019:0:0:0:0:0:0:0:60:0:0:0"] = {
+			["name"] = "Thunderfury",
+			["quality"] = 5,
+			["ilvl"] = 80,
+			["at"] = 1758067260,
+			["stats"] = {
+				["ITEM_MOD_AGILITY_SHORT"] = 5,
+				["ITEM_MOD_STAMINA_SHORT"] = 8,
+				["ITEM_MOD_DAMAGE_PER_SECOND_SHORT"] = 44.900001525879,
+				["EMPTY_SOCKET_META"] = 1,
+			},
+		},
+		["item:99999:0:0:0:0:0:0:0:60:0:0:0"] = {
+			["name"] = "Unknown Trinket",
+			["quality"] = 3,
+			["ilvl"] = 60,
+			["at"] = 1758067300,
+			["stats"] = {
+				["ITEM_MOD_INTELLECT_SHORT"] = 11,
+			},
+		},
+	},
+	["targets"] = {
+		["Creature-0-4372-409-14-11502-000012A3"] = {
+			["npcID"] = 11502,
+			["name"] = "Ragnaros",
+			["level"] = 63,
+			["classification"] = "worldboss",
+		},
+	},
+	["snapshots"] = {
+		{
+			["id"] = 1,
+			["at"] = 1758067200,
+			["reason"] = "login",
+			["level"] = 60,
+			["zone"] = "Molten Core",
+			["talents"] = "2050030152201351-05-0500001",
+			["stats"] = {
+				["strength"] = 45,
+				["agility"] = 78,
+				["stamina"] = 190,
+				["intellect"] = 310,
+				["spirit"] = 140,
+				["health"] = 3420,
+				["power"] = 5120,
+				["manaRegen"] = 31.5,
+			},
+			["combat"] = {
+				["attackPower"] = 120,
+				["rangedAttackPower"] = 90,
+				["mainHandSpeed"] = 2.7,
+				["critChance"] = 6.1500000953674,
+				["spellCritChance"] = 12.5,
+				["spellHaste"] = 0,
+				["armor"] = 890,
+				["defense"] = 300,
+			},
+			["spellPower"] = {
+				["physical"] = 0,
+				["holy"] = 200,
+				["fire"] = 400,
+				["nature"] = 200,
+				["frost"] = 250,
+				["shadow"] = 200,
+				["arcane"] = 200,
+				["healing"] = 200,
+			},
+			["ratings"] = {
+				["spellCrit"] = {
+					["rating"] = 14,
+					["percent"] = 1,
+				},
+				["spellHit"] = {
+					["rating"] = 8,
+					["percent"] = 0.63492063492063,
+				},
+			},
+			["gear"] = {
+				{
+					["slot"] = 1,
+					["id"] = 12640,
+					["link"] = "|cffa335ee|Hitem:12640:0:0:0:0:0:0:0:60:0:0:0|h[Lionheart Helm]|h|r",
+					["itemString"] = "item:12640:0:0:0:0:0:0:0:60:0:0:0",
+					["level"] = 63,
+				}, -- [1]
+			},
+		}, -- [1]
+		{
+			["id"] = 2,
+			["at"] = 1758067320,
+			["reason"] = "player_equipment_changed",
+			["level"] = 60,
+			["zone"] = "Molten Core",
+			["stats"] = {
+				["intellect"] = 330,
+			},
+			["combat"] = {
+				["spellCritChance"] = 17,
+			},
+			["spellPower"] = {
+				["physical"] = 0,
+				["holy"] = 250,
+				["fire"] = 700,
+				["nature"] = 250,
+				["frost"] = 300,
+				["shadow"] = 250,
+				["arcane"] = 250,
+				["healing"] = 250,
+			},
+			["ratings"] = {
+				["spellCrit"] = {
+					["rating"] = 77,
+					["percent"] = 5.5,
+				},
+			},
+			["gear"] = {
+			},
+		}, -- [2]
+	},
+	["events"] = {
+		{
+			["k"] = "SPELL_DAMAGE",
+			["t"] = 1758067201.125,
+			["s"] = 1,
+			["d"] = "Creature-0-4372-409-14-11502-000012A3",
+			["spell"] = 25306,
+			["spellName"] = "Fireball",
+			["school"] = 4,
+			["amount"] = 1005,
+			["overkill"] = -1,
+			["resisted"] = 0,
+			["blocked"] = 0,
+			["absorbed"] = 0,
+		}, -- [1]
+		{
+			["k"] = "SPELL_DAMAGE",
+			["t"] = 1758067204.625,
+			["s"] = 1,
+			["d"] = "Creature-0-4372-409-14-11502-000012A3",
+			["spell"] = 25306,
+			["spellName"] = "Fireball",
+			["school"] = 4,
+			["amount"] = 1015,
+			["overkill"] = -1,
+		}, -- [2]
+		{
+			["k"] = "SPELL_DAMAGE",
+			["t"] = 1758067208.125,
+			["s"] = 1,
+			["d"] = "Creature-0-4372-409-14-11502-000012A3",
+			["spell"] = 25306,
+			["spellName"] = "Fireball",
+			["school"] = 4,
+			["amount"] = 2030,
+			["crit"] = true,
+		}, -- [3]
+		{
+			["k"] = "SPELL_DAMAGE",
+			["t"] = 1758067330.5,
+			["s"] = 2,
+			["d"] = "Creature-0-4372-409-14-11502-000012A3",
+			["spell"] = 25306,
+			["spellName"] = "Fireball",
+			["school"] = 4,
+			["amount"] = 1305,
+			["overkill"] = -1,
+		}, -- [4]
+		{
+			["k"] = "SPELL_DAMAGE",
+			["t"] = 1758067334.0,
+			["s"] = 2,
+			["d"] = "Creature-0-4372-409-14-11502-000012A3",
+			["spell"] = 25306,
+			["spellName"] = "Fireball",
+			["school"] = 4,
+			["amount"] = 1295,
+			["resisted"] = 40,
+		}, -- [5]
+		{
+			["k"] = "SPELL_MISSED",
+			["t"] = 1758067337.5,
+			["s"] = 2,
+			["d"] = "Creature-0-4372-409-14-11502-000012A3",
+			["spell"] = 25306,
+			["spellName"] = "Fireball",
+			["school"] = 4,
+			["miss"] = "RESIST",
+			["offhand"] = false,
+		}, -- [6]
+		{
+			["k"] = "SWING_DAMAGE",
+			["t"] = 1758067338.5,
+			["s"] = 2,
+			["d"] = "Creature-0-4372-409-14-11502-000012A3",
+			["amount"] = 92,
+			["school"] = 1,
+			["crit"] = 1,
+			["glancing"] = nil,
+		}, -- [7]
+		{
+			["k"] = "fight_end",
+			["t"] = 38.5,
+			["n"] = 7,
+			["at"] = 1758067340,
+		}, -- [8]
+	},
+}
