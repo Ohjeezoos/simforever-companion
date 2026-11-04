@@ -1,3 +1,10 @@
+# 0.39.0
+
+- Install or update Simforever Probe only once the published addon gate clears
+  that exact addon version for players. A held, changed or unreachable gate
+  leaves the game folder untouched; a running companion checks again every five
+  minutes and installs as soon as the version is cleared.
+
 # 0.38.0
 
 - Link the Windows companion to a Discord contributor account with a browser

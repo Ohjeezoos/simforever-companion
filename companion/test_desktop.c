@@ -82,8 +82,12 @@ static void write_game(const char *game) {
     const char *flavor = "Product Flavor!STRING:0\nwowf\n"; assert(!capture_atomic(path, flavor, strlen(flavor)));
     assert(!addon_join(path, game, "Wow.exe") && !capture_atomic(path, "fixture", 7)); free(path);
 }
+static int test_gate_open(const char *url, const char *path, size_t limit) {
+    char gate[64]; (void)url; (void)limit; snprintf(gate, sizeof(gate), "SIMFOREVER-ADDON-GATE-1\n%s\n", sf_probe_version);
+    return capture_atomic(path, gate, strlen(gate)) ? -1 : 0;
+}
 int main(int argc, char **argv) {
-    _set_error_mode(_OUT_TO_STDERR); assert(argc == 3 || argc == 4);
+    _set_error_mode(_OUT_TO_STDERR); assert(argc == 3 || argc == 4); addon_gate_fetch = test_gate_open;
     CoInitializeEx(NULL, COINIT_APARTMENTTHREADED); test_worker = argv[2];
     char (*paths)[PATH_CAP] = calloc(6, sizeof(*paths)); assert(paths);
     test_config = paths[0]; test_game = paths[1];

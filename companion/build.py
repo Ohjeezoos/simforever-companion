@@ -158,10 +158,14 @@ def main():
                         payload["capture"]["unknownFixture"]["answer"] != 42 or
                         list((config / "recordings").glob("*.ack"))):
                     raise RuntimeError("local evidence or refusal did not survive worker launch")
-        for mode, flags, expected in (
-            ("normal", [], True),
-            ("disabled", ["--no-addon"], False),
-            ("diagnostic", ["-dry-run"], False),
+        gate_open, gate_hold = tmp / "addon-gate-open.txt", tmp / "addon-gate-hold.txt"
+        gate_open.write_text(f"SIMFOREVER-ADDON-GATE-1\n{addon_version}\n")
+        gate_hold.write_text("SIMFOREVER-ADDON-GATE-1\nhold\n")
+        for mode, flags, expected, gate in (
+            ("normal", [], True, gate_open),
+            ("held", [], False, gate_hold),
+            ("disabled", ["--no-addon"], False, gate_open),
+            ("diagnostic", ["-dry-run"], False, gate_open),
         ):
             config = tmp / ("addon-" + mode)
             config.mkdir()
@@ -173,10 +177,10 @@ def main():
             content = json.dumps({"wowPath": str(game), "consentGranted": False, "watch": [], "watchLogs": []})
             config_file.write_text(content)
             subprocess.run([str(args_bundle), *desktop_flags, "--no-update", "--no-collect", "-config", str(config), *flags],
-                           env=smoke_env, capture_output=True, check=True)
+                           env={**smoke_env, "SIMFOREVER_ADDON_GATE_FILE": str(gate)}, capture_output=True, check=True)
             addon_dir = game / "Interface/AddOns/SimforeverProbe"
             if addon_dir.is_dir() != expected or config_file.read_text() != content:
-                raise RuntimeError("packaged addon startup/disable/diagnostic boundary failed")
+                raise RuntimeError("packaged addon startup/gate/disable/diagnostic boundary failed")
             if expected:
                 for source in (ROOT / "addon/SimforeverProbe").iterdir():
                     if source.is_file() and (addon_dir / source.name).read_bytes() != source.read_bytes():

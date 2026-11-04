@@ -4,7 +4,51 @@
 typedef struct { const char *name; const unsigned char *data; size_t size; const char *hash; } AddonFile;
 #include "probe_payload.h"
 
-typedef struct { char config[PATH_CAP], explicit_wow[PATH_CAP]; int active, checked; } AddonManager;
+typedef struct { char config[PATH_CAP], explicit_wow[PATH_CAP]; int active, checked, held; time_t recheck; } AddonManager;
+
+/* Each addon version reaches players only after Simforever has tested it in the
+ * game: the published gate names the cleared version, optionally with the time
+ * it takes effect. Anything else, including an unreachable gate, holds. */
+#define SF_ADDON_GATE_RECHECK 300
+static int (*addon_gate_fetch)(const char *, const char *, size_t) = download;
+static int addon_gate_parse(char *text, long long now) {
+    char *line[4] = {0}; int count = 0;
+    for (char *p = text; p && *p && count < 4;) {
+        line[count++] = p; char *next = strchr(p, '\n'); if (next) *next++ = 0;
+        size_t n = strlen(p); if (n && p[n - 1] == '\r') p[n - 1] = 0;
+        p = next; if (count == 3 && p && *p) return 0;
+    }
+    if (count < 2 || strcmp(line[0], "SIMFOREVER-ADDON-GATE-1") || strcmp(line[1], sf_probe_version)) return 0;
+    if (count == 3 && *line[2]) {
+        char *end = NULL;
+        if (strncmp(line[2], "after ", 6) || !isdigit((unsigned char)line[2][6])) return 0;
+        long long at = strtoll(line[2] + 6, &end, 10);
+        if (*end || now < at) return 0;
+    }
+    return 1;
+}
+static int addon_gate_open(void) {
+    const char *local = getenv("SIMFOREVER_ADDON_GATE_FILE");
+    char *tmp = malloc(PATH_CAP), *cache = malloc(PATH_CAP), *text = NULL; size_t n = 0;
+    if (!tmp || !cache) { free(tmp); free(cache); return 0; }
+    if (local && *local) text = capture_read_limit(local, &n, 255);
+    else {
+        char url[512], name[64];
+        snprintf(url, sizeof(url), "%s/downloads/companion/addon-gate.txt", SF_ORIGIN);
+        snprintf(name, sizeof(name), "addon-gate.part.%lu", process_id());
+        if (!cache_dir(cache) && !path_join(tmp, cache, name)) {
+            if (!addon_gate_fetch(url, tmp, 255)) text = capture_read_limit(tmp, &n, 255);
+            remove_file(tmp);
+        }
+    }
+    int open = text && !memchr(text, 0, n) && addon_gate_parse(text, (long long)time(NULL));
+    free(text); free(tmp); free(cache); return open;
+}
+static int addon_install(const char *game);
+static inline int addon_install_cleared(const char *game, int *held) {
+    *held = !addon_gate_open();
+    return *held ? 0 : addon_install(game);
+}
 
 static int addon_join(char *out, const char *base, const char *name) {
     size_t a = strlen(base), b = strlen(name);
@@ -239,7 +283,7 @@ static int addon_release_args(int argc, char **argv, char ***out, char **game) {
 }
 static void addon_start(AddonManager *a) {
     if (!a->active || a->checked) return;
-    a->checked = 1;
+    a->checked = 1; int was_held = a->held; a->held = 0;
     char *settings = malloc(PATH_CAP); size_t settings_size = 0;
     char *text = settings && !addon_join(settings, a->config, "addon-settings.json") ? capture_read(settings, &settings_size) : NULL;
     free(settings);
@@ -247,6 +291,10 @@ static void addon_start(AddonManager *a) {
     int disabled = cJSON_IsFalse(cJSON_GetObjectItemCaseSensitive(prefs, "enabled"));
     free(text); cJSON_Delete(prefs);
     if (disabled) return;
+    if (!addon_gate_open()) {
+        if (!was_held) fprintf(stderr, "Simforever Probe %s is not cleared for players yet; the companion installs it once it is.\n", sf_probe_version);
+        a->held = 1; a->recheck = time(NULL) + SF_ADDON_GATE_RECHECK; return;
+    }
     cJSON *cfg = capture_config(a->config);
     const char *wow = a->explicit_wow[0] ? a->explicit_wow : capture_text(cfg, "wowPath");
     if (wow && *wow) { (void)addon_try_root(wow); cJSON_Delete(cfg); return; }
@@ -295,5 +343,9 @@ static void addon_start(AddonManager *a) {
     const char *home = getenv("HOME");
     if (home) { char path[PATH_CAP]; if (!addon_join(path, home, ".wine/drive_c/Program Files (x86)/World of Warcraft")) (void)addon_try_root(path); }
 #endif
+}
+static void addon_poll(AddonManager *a) {
+    if (!a->held || time(NULL) < a->recheck) return;
+    a->checked = 0; addon_start(a);
 }
 #endif

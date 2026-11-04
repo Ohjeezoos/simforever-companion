@@ -513,6 +513,7 @@ static int launch(const char *path, int argc, char **argv, int handoff) {
             TerminateProcess(pi.hProcess, 0); WaitForSingleObject(pi.hProcess, INFINITE); break;
         }
         if (collect) capture_tick(&collector, capture_post);
+        addon_poll(&addon);
     }
     if (collect) {
         if (!desktop_stop || WaitForSingleObject(desktop_stop, 0) != WAIT_OBJECT_0) { collector.poll = 0; capture_tick(&collector, capture_post); }
@@ -550,6 +551,7 @@ static int launch(const char *path, int argc, char **argv, int handoff) {
         if (done < 0 && errno != EINTR) { status = 1 << 8; break; }
         if (capture_signal) { kill(child, capture_signal); capture_signal = 0; }
         if (collect) capture_tick(&collector, capture_post);
+        addon_poll(&addon);
         sleep(1);
     }
     if (collect) { collector.poll = 0; capture_tick(&collector, capture_post); capture_close(&collector); }

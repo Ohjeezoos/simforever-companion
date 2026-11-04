@@ -24,6 +24,8 @@
 #define SF_SYNC (WM_APP + 8)
 #define SF_ACCOUNT (WM_APP + 9)
 #define SF_STATUS_TIMER 1
+#define SF_ADDON_TIMER 2
+#define SF_ADDON_CHECKED (WM_APP + 10)
 #define SF_BROWSE 101
 #define SF_DEEP 102
 #define SF_CANCEL 103
@@ -54,6 +56,7 @@ typedef struct {
     int scan_mode, scan_result, ready, busy, background_start, tray_added, stopping;
     ULONGLONG progress_at;
     UINT taskbar_created;
+    int addon_held; volatile LONG addon_checking;
 } Desktop;
 
 static void desktop_render(Desktop *d);
@@ -408,7 +411,7 @@ static int desktop_install(Desktop *d) {
     char *app = malloc(PATH_CAP); if (!app) return -1;
     strcpy(d->headline, "Installing the companion"); d->kind[0] = 0;
     desktop_status(d, L"Installing Simforever Probe in WoW Forever...");
-    if ((!no_addon && addon_install(d->game) < 0) || desktop_install_app(d, app) || mkdir_tree(d->config) || desktop_save(d, d->automatic_share)) {
+    if ((!no_addon && addon_install_cleared(d->game, &d->addon_held) < 0) || desktop_install_app(d, app) || mkdir_tree(d->config) || desktop_save(d, d->automatic_share)) {
         strcpy(d->headline, "Installation needs attention"); strcpy(d->kind, "bad");
         desktop_status(d, L"The installation could not finish. Check that the game folder is writable, then choose it again."); free(app); return -1;
     }
@@ -416,8 +419,20 @@ static int desktop_install(Desktop *d) {
     int startup = desktop_autorun(desktop_run_key, app, d->config, d->autorun); free(app);
     d->installed = 1; strcpy(d->headline, d->share ? "Ready to sync" : "Sharing paused"); strcpy(d->kind, "good");
     desktop_status(d, d->share ? L"New recordings sync automatically." : L"Recordings stay on this computer. Resume sharing in settings.");
+    if (d->addon_held) {
+        desktop_status(d, L"The Simforever addon installs itself here once it is cleared for this game version. Nothing else is needed.");
+        SetTimer(d->window, SF_ADDON_TIMER, SF_ADDON_GATE_RECHECK * 1000, NULL);
+    }
     if (shortcuts || startup) desktop_error(d, L"The addon is installed, but a Windows shortcut could not be saved. Keep the downloaded companion to open it manually.");
     desktop_start(d); return 0;
+}
+/* The check owns its copy of the folder, so quitting mid-check is safe. */
+typedef struct { HWND window; char game[PATH_CAP]; } DesktopAddonCheck;
+static DWORD WINAPI desktop_addon_thread(LPVOID param) {
+    DesktopAddonCheck *c = param; int held = 1;
+    int rc = addon_install_cleared(c->game, &held);
+    PostMessageW(c->window, SF_ADDON_CHECKED, (WPARAM)held, (LPARAM)rc);
+    free(c); return 0;
 }
 static HWND desktop_control(Desktop *d, const wchar_t *kind, const wchar_t *label, DWORD style, int x, int y, int w, int h, int id) {
     HWND control = CreateWindowExW(!wcscmp(kind, L"EDIT") ? WS_EX_CLIENTEDGE : 0, kind, label,
@@ -622,12 +637,28 @@ static LRESULT CALLBACK desktop_proc(HWND window, UINT message, WPARAM wp, LPARA
     case SF_WORKER_DONE:
         if (!d->stopping && d->ready) { strcpy(d->headline, "Tracking stopped"); strcpy(d->kind, "bad"); desktop_status(d, L"Quit and reopen the companion to restart tracking."); }
         return 0;
+    case SF_ADDON_CHECKED:
+        InterlockedExchange(&d->addon_checking, 0);
+        if (!wp && (int)lp >= 0) {
+            d->addon_held = 0; KillTimer(window, SF_ADDON_TIMER);
+            if (d->ready) desktop_status(d, L"Simforever Probe is installed. Log in or reload the game interface to load it.");
+        }
+        return 0;
     case WM_TIMER:
+        if (wp == SF_ADDON_TIMER) {
+            if (d->addon_held && !no_addon && !InterlockedCompareExchange(&d->addon_checking, 1, 0)) {
+                DesktopAddonCheck *c = malloc(sizeof(*c));
+                HANDLE t = NULL;
+                if (c) { c->window = window; strcpy(c->game, d->game); t = CreateThread(NULL, 0, desktop_addon_thread, c, 0, NULL); }
+                if (t) CloseHandle(t); else { free(c); InterlockedExchange(&d->addon_checking, 0); }
+            }
+            return 0;
+        }
         if (d->busy && d->scan_mode) { EnterCriticalSection(&d->progress_lock); desktop_render(d); LeaveCriticalSection(&d->progress_lock); }
         return 0;
     case WM_DESTROY:
         sf_view_close(d->view); d->view = NULL;
-        desktop_tray(d, NIM_DELETE); KillTimer(window, SF_STATUS_TIMER); PostQuitMessage(0); return 0;
+        desktop_tray(d, NIM_DELETE); KillTimer(window, SF_STATUS_TIMER); KillTimer(window, SF_ADDON_TIMER); PostQuitMessage(0); return 0;
     }
     return DefWindowProcW(window, message, wp, lp);
 }

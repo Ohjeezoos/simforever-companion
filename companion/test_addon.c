@@ -40,8 +40,28 @@ static int addon_test_backup(const char *dir, const char *name) {
     closedir(d); return found;
 #endif
 }
+static const char *addon_test_gate;
+static int addon_test_fetch(const char *url, const char *path, size_t limit) {
+    assert(strstr(url, "/downloads/companion/addon-gate.txt") && limit == 255);
+    return addon_test_gate && !capture_atomic(path, addon_test_gate, strlen(addon_test_gate)) ? 0 : -1;
+}
+static int addon_test_parse(const char *format, long long now) {
+    char text[256]; snprintf(text, sizeof(text), format, sf_probe_version); return addon_gate_parse(text, now);
+}
 int main(int argc, char **argv) {
     assert(argc == 2);
+    addon_gate_fetch = addon_test_fetch;
+    assert(addon_test_parse("SIMFOREVER-ADDON-GATE-1\n%s\n", 0) && addon_test_parse("SIMFOREVER-ADDON-GATE-1\r\n%s\r\n", 0));
+    assert(addon_test_parse("SIMFOREVER-ADDON-GATE-1\n%s", 0));
+    assert(!addon_test_parse("SIMFOREVER-ADDON-GATE-1\nhold\n%s\n", 0) && !addon_test_parse("SIMFOREVER-ADDON-GATE-1\n0.0.1\n", 0));
+    assert(!addon_test_parse("SIMFOREVER-ADDON-GATE-1\n%s\nafter 2000\n", 1999) && addon_test_parse("SIMFOREVER-ADDON-GATE-1\n%s\nafter 2000\n", 2000));
+    assert(!addon_test_parse("SIMFOREVER-ADDON-GATE-1\n%s\nafter soon\n", 0) && !addon_test_parse("SIMFOREVER-ADDON-GATE-1\n%s\nafter 1\nmore\n", 9));
+    assert(!addon_test_parse("SIMFOREVER-ADDON-GATE-2\n%s\n", 0) && !addon_test_parse("", 0) && !addon_test_parse("%s\n", 0));
+    char open_gate[64]; snprintf(open_gate, sizeof(open_gate), "SIMFOREVER-ADDON-GATE-1\n%s\n", sf_probe_version);
+    const char *hold_gate = "SIMFOREVER-ADDON-GATE-1\nhold\n";
+    addon_test_gate = NULL; assert(!addon_gate_open());
+    addon_test_gate = hold_gate; assert(!addon_gate_open());
+    addon_test_gate = open_gate; assert(addon_gate_open());
     char game[PATH_CAP], installed[PATH_CAP], addons[PATH_CAP], toc[PATH_CAP], core[PATH_CAP];
     char settings[PATH_CAP], log[PATH_CAP], other[PATH_CAP], custom[PATH_CAP];
     assert(!path_join(game, argv[1], "Game with spaces-Π/_forever_") && !mkdir_tree(game));
@@ -93,8 +113,19 @@ int main(int argc, char **argv) {
     /* Changing preferences during the session does not trigger addon work. */
     addon_start(&manager);
     assert(!path_join(custom, fresh, "Interface") && addon_kind(custom) == 0);
+    /* A held gate installs nothing until a later check finds this version cleared. */
+    addon_test_gate = hold_gate;
     assert(addon_init(&manager, 3, normal)); addon_start(&manager);
+    assert(manager.held && !path_join(custom, fresh, "Interface") && addon_kind(custom) == 0);
+    addon_test_gate = open_gate; addon_poll(&manager); assert(manager.held && addon_kind(custom) == 0);
+    manager.recheck = 0; addon_poll(&manager); assert(!manager.held);
     assert(!path_join(custom, fresh, "Interface/AddOns/SimforeverProbe") && addon_matches(custom));
+    char cleared[PATH_CAP]; int held = 0;
+    assert(!path_join(cleared, argv[1], "cleared/_forever_") && !mkdir_tree(cleared)); addon_test_game(cleared, "Product Flavor!STRING:0\nwowf\n");
+    addon_test_gate = hold_gate; assert(addon_install_cleared(cleared, &held) == 0 && held);
+    assert(!path_join(custom, cleared, "Interface") && addon_kind(custom) == 0);
+    addon_test_gate = NULL; assert(addon_install_cleared(cleared, &held) == 0 && held && addon_kind(custom) == 0);
+    addon_test_gate = open_gate; assert(addon_install_cleared(cleared, &held) == 1 && !held);
     addon_test_text(cfgpath, json); free(json);
     char beta[PATH_CAP], release[PATH_CAP];
     assert(!path_join(beta, argv[1], "migration/_classic_beta_") && !mkdir_tree(beta));
@@ -122,6 +153,6 @@ int main(int argc, char **argv) {
     assert(!path_join(linkpath, linked, "SimforeverProbe") && !symlink(external, linkpath));
     assert(!path_join(linked, argv[1], "linked-target/_forever_")); addon_test_game(linked, "Product Flavor!STRING:0\nwowf\n"); assert(addon_install(linked) == -1);
 #endif
-    puts("addon checks passed: fresh install, repair, backup, no downgrade, passive install, opt-out, diagnostic isolation and preserved recordings/config");
+    puts("addon checks passed: release gate, fresh install, repair, backup, no downgrade, passive install, opt-out, diagnostic isolation and preserved recordings/config");
     return 0;
 }
