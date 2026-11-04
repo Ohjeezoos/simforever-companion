@@ -16,6 +16,10 @@ Supported build targets:
 Every target also needs Python 3.10+ and Go 1.25+. No private files, credentials
 or access to the hosted backend are needed to build.
 
+Addon packaging and harness checks need Lua 5.4, including `luac5.4`.
+On Debian or Ubuntu, install it with `sudo apt-get install lua5.4` before
+running the checks below.
+
 ```sh
 go test ./platform/companion/... ./platform/probe/... ./platform/ingest/...
 python3 companion/test_addon_payload.py

@@ -20,6 +20,10 @@ jobs:
       - uses: actions/setup-python@v5
         with:
           python-version: '3.13'
+      - name: Lua dependencies
+        run: |
+          sudo apt-get update -qq
+          sudo apt-get install -y lua5.4
       - name: Parser and upload worker tests
         run: go test ./platform/companion/... ./platform/probe/... ./platform/ingest/...
       - name: Packaging tests
@@ -29,8 +33,6 @@ jobs:
           python3 addon/test-package.py
       - name: Addon tests
         run: |
-          sudo apt-get update -qq
-          sudo apt-get install -y lua5.4
           cd addon
           lua5.4 test-harness.lua
 
