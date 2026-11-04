@@ -7,10 +7,10 @@ import tempfile
 def generate(source=None, output=None):
     root = Path(__file__).resolve().parent
     source, output = Path(source or root / "ui.html"), Path(output or root / "ui_payload.h")
-    notices = "Microsoft WebView2 SDK\n\n" + (root / "vendor/webview2/LICENSE.txt").read_text()
-    notices += "\n\ncJSON\n\n" + (root / "vendor/LICENSE").read_text()
+    notices = "Microsoft WebView2 SDK\n\n" + (root / "vendor/webview2/LICENSE.txt").read_text(encoding="utf-8")
+    notices += "\n\ncJSON\n\n" + (root / "vendor/LICENSE").read_text(encoding="utf-8")
     for license_file in sorted((root / "licenses").glob("*.txt")):
-        notices += "\n\n" + license_file.stem + "\n\n" + license_file.read_text()
+        notices += "\n\n" + license_file.stem + "\n\n" + license_file.read_text(encoding="utf-8")
     text = "/* Generated from ui.html and third-party notices. */\n"
     for name, data in (("sf_ui_html", source.read_bytes()), ("sf_ui_notices", notices.encode())):
         data += b"\0"
