@@ -116,7 +116,9 @@ static int contributor_logs(ContributionLoop *loop, const char *dir, const char 
             uint64_t size = ((uint64_t)data.nFileSizeHigh << 32) | data.nFileSizeLow;
             if (!size) continue;
             ++seen;
-            if (size > 256u * 1024u * 1024u || modified > now || now - modified < UINT64_C(600000000)) { ++pending; continue; }
+            /* A session log is sent after 15 quiet minutes, not after every pause between pulls;
+             * the account service forwards a re-sent log's new lines only. */
+            if (size > 256u * 1024u * 1024u || modified > now || now - modified < UINT64_C(9000000000)) { ++pending; continue; }
             if (addon_join(pattern, game, "Logs") || addon_join(path, pattern, name)) { ++pending; continue; }
             const char *digest = sync_hash(&loop->files, path);
             if (!digest || contributor_receipt(dir, secret, digest, receipt)) { ++pending; continue; }

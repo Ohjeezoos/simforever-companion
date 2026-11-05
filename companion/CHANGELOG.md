@@ -1,3 +1,10 @@
+# 0.40.0
+
+- Linked Windows companions send a session's combat log after it has been
+  unchanged for 15 minutes instead of 60 seconds, so a long session is no
+  longer re-sent whole after every pause. The account service also forwards
+  only the new lines of a re-sent log and charges the daily allowance for them.
+
 # 0.39.0
 
 - Install or update Simforever Probe only once the published addon gate clears
