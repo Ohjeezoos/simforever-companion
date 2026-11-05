@@ -28,6 +28,12 @@ int main(int argc, char **argv) {
     assert(!contributor_save(argv[1], token));
     char *receipt = malloc(PATH_CAP); assert(receipt && !contributor_receipt(argv[1], token, token, receipt));
     assert(!strstr(receipt, token) || strstr(receipt, token) == receipt + strlen(receipt) - 69);
+    char *anonymous = malloc(PATH_CAP), digest[65]; memset(digest, 'b', 64); digest[64] = 0;
+    assert(anonymous && !contributor_receipt(argv[1], NULL, digest, anonymous) && strcmp(anonymous, receipt));
+    assert(!contributor_legacy_sent(argv[1], digest));
+    cfg = cJSON_CreateObject(); cJSON *entries = cJSON_AddObjectToObject(cfg, "entries"), *entry = cJSON_AddObjectToObject(entries, "log:C:\\Logs\\WoWCombatLog.txt");
+    cJSON_AddStringToObject(entry, "hash", digest); cJSON_AddObjectToObject(entries, "probe:x"); assert(!desktop_json(argv[1], "state.json", cfg)); cJSON_Delete(cfg);
+    assert(contributor_legacy_sent(argv[1], digest)); digest[0] = 'c'; assert(!contributor_legacy_sent(argv[1], digest)); free(anonymous);
     long status = 0; assert(!contributor_request("device/status", "invalid", NULL, 0, &status));
     assert(!status);
     wchar_t *w = wide_path(path); assert(w && DeleteFileW(w)); free(w); free(path); free(receipt);

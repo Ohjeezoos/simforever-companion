@@ -88,10 +88,21 @@ done:
     free(w); free(response.s); return result;
 }
 static int contributor_receipt(const char *dir, const char *secret, const char *digest, char *path) {
-    char owner[65], name[160]; if (capture_hash_bytes(secret, strlen(secret), owner)) return -1;
+    const char *who = secret ? secret : "anonymous";
+    char owner[65], name[160]; if (capture_hash_bytes(who, strlen(who), owner)) return -1;
     snprintf(name, sizeof(name), "contribution-%s-%s.json", owner, digest); return addon_join(path, dir, name);
 }
 typedef struct { ULONGLONG next_poll, next_upload; SyncCache files; } ContributionLoop;
+/* Logs the legacy uploader already sent are recognised by hash, so moving
+ * anonymous uploads to C does not send them again. */
+static int contributor_legacy_sent(const char *dir, const char *digest) {
+    cJSON *state = sync_json(dir, "state.json"), *entry; int sent = 0;
+    cJSON_ArrayForEach(entry, cJSON_GetObjectItemCaseSensitive(state, "entries")) {
+        const char *hash = capture_text(entry, "hash");
+        if (entry->string && !strncmp(entry->string, "log:", 4) && hash && !strcmp(hash, digest)) { sent = 1; break; }
+    }
+    cJSON_Delete(state); return sent;
+}
 static FILE *contributor_spool(const char *dir) {
     unsigned char random[16]; char name[80] = "contribution-spool-";
     if (BCryptGenRandom(NULL, random, sizeof(random), BCRYPT_USE_SYSTEM_PREFERRED_RNG)) return NULL;
@@ -123,6 +134,10 @@ static int contributor_logs(ContributionLoop *loop, const char *dir, const char 
             const char *digest = sync_hash(&loop->files, path);
             if (!digest || contributor_receipt(dir, secret, digest, receipt)) { ++pending; continue; }
             if (addon_kind(receipt) == 1) continue;
+            if (!secret && contributor_legacy_sent(dir, digest)) {
+                char note[160]; snprintf(note, sizeof(note), "{\"sha256\":\"%s\",\"status\":\"sent_by_legacy_uploader\"}", digest);
+                if (!capture_atomic(receipt, note, strlen(note))) continue;
+            }
             ++pending;
             if (sent || GetTickCount64() < loop->next_upload || (desktop_stop && WaitForSingleObject(desktop_stop, 0) == WAIT_OBJECT_0)) continue;
             FILE *input = open_file(path, "rb"), *spool = contributor_spool(dir);
@@ -132,7 +147,7 @@ static int contributor_logs(ContributionLoop *loop, const char *dir, const char 
             fclose(input); unsigned char bytes[32]; char copied[65]; rewind(spool);
             if (ok && !sha256(spool, size, bytes)) { hex_digest(bytes, copied); ok = !strcmp(copied, digest); } else ok = 0;
             if (ok) {
-                long status = 0; cJSON *reply = contributor_request("logs", secret, spool, (DWORD)size, &status); const char *hash = capture_text(reply, "sha256");
+                long status = 0; cJSON *reply = contributor_request(secret ? "logs" : "logs/anonymous", secret, spool, (DWORD)size, &status); const char *hash = capture_text(reply, "sha256");
                 if (reply && status >= 200 && status < 300 && hash && !strcmp(hash, digest)) {
                     char *json = cJSON_PrintUnformatted(reply);
                     if (json && !capture_atomic(receipt, json, strlen(json))) --pending;

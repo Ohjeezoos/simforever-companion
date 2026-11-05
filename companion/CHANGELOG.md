@@ -1,3 +1,11 @@
+# 0.41.0
+
+- Windows companions on the Simforever server send combat logs from C for
+  anonymous players too, after 15 unchanged minutes, through the account
+  service's anonymous route. Logs the legacy uploader already sent are
+  recognised by hash and not sent again. Custom upload servers keep the
+  legacy uploader.
+
 # 0.40.0
 
 - Linked Windows companions send a session's combat log after it has been

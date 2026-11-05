@@ -363,7 +363,8 @@ static DWORD WINAPI desktop_worker_thread(void *ctx) {
     int n = d->argc;
     args[n++] = "-console"; args[n++] = "-config"; args[n++] = d->config;
     args[n++] = "-wow"; args[n++] = d->game;
-    if (d->linked) args[n++] = "-logs=false";
+    /* On the Simforever server, C sends combat logs for linked and anonymous players alike. */
+    if (d->linked || contributor_endpoint(d->config)) args[n++] = "-logs=false";
     int code = 0;
     while (WaitForSingleObject(desktop_stop, 0) == WAIT_TIMEOUT) {
         code = launch(d->worker_path, n, args, 0);
@@ -374,7 +375,8 @@ static DWORD WINAPI desktop_worker_thread(void *ctx) {
 static DWORD WINAPI desktop_sync_thread(void *context) {
     Desktop *d = context; SyncCache cache = {0}; ContributionLoop contributions = {0}; int previous = -1;
     do {
-        int state = d->linked ? sync_state_mode(&cache, d->config, 1) : sync_state(&cache, d->config);
+        int c_logs = d->linked || contributor_endpoint(d->config);
+        int state = sync_state_mode(&cache, d->config, d->linked, c_logs);
         char secret[65] = {0};
         if (d->linked && contributor_endpoint(d->config) && contributor_load(d->config, secret)) {
             if (GetTickCount64() >= contributions.next_poll) {
@@ -391,6 +393,14 @@ static DWORD WINAPI desktop_sync_thread(void *context) {
             }
             cJSON_Delete(prefs);
             SecureZeroMemory(secret, sizeof(secret));
+        } else if (!d->linked && c_logs) {
+            cJSON *prefs = capture_config(d->config);
+            if (cJSON_IsTrue(cJSON_GetObjectItemCaseSensitive(prefs, "consentGranted")) &&
+                !cJSON_IsTrue(cJSON_GetObjectItemCaseSensitive(prefs, "skipCombatLogs"))) {
+                int logs = contributor_logs(&contributions, d->config, d->game, NULL);
+                if (logs > 0) state = SF_SYNC_PENDING; else if (!logs && state == SF_SYNC_READY) state = SF_SYNC_DONE;
+            }
+            cJSON_Delete(prefs);
         }
         if (WaitForSingleObject(desktop_stop, 0) == WAIT_OBJECT_0) break;
         if (state != previous) { PostMessageW(d->window, SF_SYNC, (WPARAM)state, 0); previous = state; }

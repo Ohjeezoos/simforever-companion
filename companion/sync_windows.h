@@ -64,7 +64,8 @@ static int sync_is_log(const char *path) {
     for (char *p = head; *p; ++p) { slash += *p == '/'; colon += *p == ':'; }
     return slash >= 1 && colon >= 2;
 }
-static int sync_state_mode(SyncCache *cache, const char *dir, int linked) {
+/* `linked` selects the legacy uploader's linked state; `c_logs` means C sends combat logs. */
+static int sync_state_mode(SyncCache *cache, const char *dir, int linked, int c_logs) {
     cJSON *cfg = capture_config(dir);
     if (!cfg) return SF_SYNC_READY;
     if (!cJSON_IsTrue(cJSON_GetObjectItemCaseSensitive(cfg, "consentGranted"))) { cJSON_Delete(cfg); return SF_SYNC_PAUSED; }
@@ -104,7 +105,7 @@ static int sync_state_mode(SyncCache *cache, const char *dir, int linked) {
         }
         capture_files_free(&queued);
     }
-    if (!linked && !cJSON_IsTrue(cJSON_GetObjectItemCaseSensitive(cfg, "skipCombatLogs"))) {
+    if (!c_logs && !cJSON_IsTrue(cJSON_GetObjectItemCaseSensitive(cfg, "skipCombatLogs"))) {
         cJSON_ArrayForEach(file, cJSON_GetObjectItemCaseSensitive(cfg, "watchLogs")) {
             if (!cJSON_IsString(file) || !sync_is_log(file->valuestring)) continue;
             size_t n = strlen(file->valuestring); char *key = malloc(n + 5);
@@ -128,5 +129,5 @@ static int sync_state_mode(SyncCache *cache, const char *dir, int linked) {
     free(collector); free(path); cJSON_Delete(consent); cJSON_Delete(state); cJSON_Delete(cfg);
     return pending ? SF_SYNC_PENDING : acknowledged ? SF_SYNC_DONE : SF_SYNC_READY;
 }
-static int sync_state(SyncCache *cache, const char *dir) { return sync_state_mode(cache, dir, 0); }
+static int sync_state(SyncCache *cache, const char *dir) { return sync_state_mode(cache, dir, 0, 0); }
 #endif
