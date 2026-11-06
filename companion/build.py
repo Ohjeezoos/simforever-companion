@@ -75,10 +75,15 @@ def main():
         worker, launcher, test = [tmp / (s + suffix) for s in ("worker", "launcher", "test")]
         env = os.environ.copy()
         env.update(CGO_ENABLED="0", GOOS=args.target.split("-")[0], GOARCH=args.target.split("-")[1])
+        # The Windows worker is a console program started with CREATE_NO_WINDOW,
+        # so the console tools it runs (reg.exe at startup) share its hidden
+        # console instead of each opening a window that takes focus.
         flags = f"-s -w -X github.com/Ohjeezoos/simforever-companion/platform/companion.Version={args.version}"
-        if suffix:
-            flags += " -H=windowsgui"
         subprocess.run(["go", "build", "-trimpath", "-ldflags", flags, "-o", str(worker), "./platform/cmd/simforever-companion"], cwd=ROOT, env=env, check=True)
+        if suffix:
+            image = worker.read_bytes(); pe = int.from_bytes(image[0x3C:0x40], "little")
+            if image[pe:pe + 4] != b"PE\0\0" or int.from_bytes(image[pe + 0x5C:pe + 0x5E], "little") != 3:
+                raise RuntimeError("the Windows worker must be a console program, so its reg.exe lookups open no window")
         resource = None
         if suffix:
             resource = tmp / "companion.res"

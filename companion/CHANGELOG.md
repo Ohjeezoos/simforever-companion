@@ -1,3 +1,11 @@
+# 0.45.0
+
+- Windows companions no longer flash terminal windows when they start or
+  restart into an update. The background worker looks up the game folder with
+  Windows' own `reg` tool, and on a system whose default terminal is Windows
+  Terminal each lookup opened a window that took focus. The worker now runs
+  with a hidden console that those lookups share.
+
 # 0.44.0
 
 - A running companion checks for an update every six hours, as well as when

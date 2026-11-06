@@ -518,10 +518,15 @@ static int launch(const char *path, int argc, char **argv, int handoff) {
     si.hStdInput = GetStdHandle(STD_INPUT_HANDLE);
     si.hStdOutput = GetStdHandle(STD_OUTPUT_HANDLE);
     si.hStdError = GetStdHandle(STD_ERROR_HANDLE);
-    DWORD flags = desktop_stop && !handoff ? CREATE_NO_WINDOW | CREATE_SUSPENDED : 0;
+    /* The worker is a console program: hidden in the tray host, and hidden
+     * too where this launcher has no console of its own to share with it. */
+    DWORD flags = desktop_stop && !handoff ? CREATE_NO_WINDOW | CREATE_SUSPENDED
+                : !handoff && !GetConsoleWindow() ? CREATE_NO_WINDOW : 0;
     int ok = CreateProcessW(exe, command, NULL, NULL, TRUE, flags, NULL, NULL, &si, &pi);
+    /* Inherited console handles refuse a hidden console; start it as before. */
+    if (!ok && flags == CREATE_NO_WINDOW) ok = CreateProcessW(exe, command, NULL, NULL, TRUE, 0, NULL, NULL, &si, &pi);
     free(exe); if (!ok) return -1;
-    if (flags) {
+    if (flags & CREATE_SUSPENDED) {
         if (!AssignProcessToJobObject(desktop_job, pi.hProcess)) {
             TerminateProcess(pi.hProcess, 1); CloseHandle(pi.hThread); CloseHandle(pi.hProcess); return -1;
         }
