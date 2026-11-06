@@ -92,7 +92,41 @@ static int contributor_receipt(const char *dir, const char *secret, const char *
     char owner[65], name[160]; if (capture_hash_bytes(who, strlen(who), owner)) return -1;
     snprintf(name, sizeof(name), "contribution-%s-%s.json", owner, digest); return addon_join(path, dir, name);
 }
-typedef struct { ULONGLONG next_poll, next_upload; SyncCache files; } ContributionLoop;
+/* A log's size as the companion last saw it, and since when. WoW keeps its
+ * combat log open, and Windows leaves an open file's directory entry (the
+ * size and time FindFirstFile reports) stale, so quiet is observed here. */
+typedef struct LogGrowth { char *path; uint64_t size; ULONGLONG since; struct LogGrowth *next; } LogGrowth;
+typedef struct { ULONGLONG next_poll, next_upload; SyncCache files; LogGrowth *growth; } ContributionLoop;
+static void contributor_loop_free(ContributionLoop *loop) {
+    sync_cache_free(&loop->files);
+    while (loop->growth) { LogGrowth *g = loop->growth; loop->growth = g->next; free(g->path); free(g); }
+}
+/* The size an open handle reports, which is current while the game writes. */
+static int contributor_true_size(const char *path, uint64_t *size) {
+    wchar_t *w = wide_path(path);
+    HANDLE h = w ? CreateFileW(w, FILE_READ_ATTRIBUTES, FILE_SHARE_READ | FILE_SHARE_WRITE | FILE_SHARE_DELETE, NULL, OPEN_EXISTING, FILE_ATTRIBUTE_NORMAL, NULL) : INVALID_HANDLE_VALUE;
+    free(w); if (h == INVALID_HANDLE_VALUE) return -1;
+    LARGE_INTEGER n; BOOL ok = GetFileSizeEx(h, &n); CloseHandle(h);
+    if (!ok || n.QuadPart < 0) return -1;
+    *size = (uint64_t)n.QuadPart; return 0;
+}
+/* When the log last changed size, by this companion's clock. A log first seen
+ * with a current, matching directory entry older than the quiet period is a
+ * closed one and may go at once; anything else waits to be seen unchanged. */
+#define CONTRIBUTOR_QUIET_MS UINT64_C(900000)
+static ULONGLONG contributor_unchanged_since(ContributionLoop *loop, const char *path, uint64_t size, int closed) {
+    ULONGLONG tick = GetTickCount64(); LogGrowth *g = loop->growth;
+    while (g && strcmp(g->path, path)) g = g->next;
+    if (!g) {
+        g = calloc(1, sizeof(*g)); char *copy = malloc(strlen(path) + 1);
+        if (!g || !copy) { free(g); free(copy); return tick; }
+        strcpy(copy, path); g->path = copy; g->size = size;
+        g->since = closed && tick > CONTRIBUTOR_QUIET_MS ? tick - CONTRIBUTOR_QUIET_MS : tick;
+        g->next = loop->growth; loop->growth = g; return g->since;
+    }
+    if (g->size != size) { g->size = size; g->since = tick; }
+    return g->since;
+}
 /* Logs the legacy uploader already sent are recognised by hash, so moving
  * anonymous uploads to C does not send them again. */
 static int contributor_legacy_sent(const char *dir, const char *digest) {
@@ -127,12 +161,19 @@ static int contributor_logs(ContributionLoop *loop, const char *dir, const char 
             uint64_t size = ((uint64_t)data.nFileSizeHigh << 32) | data.nFileSizeLow;
             if (!size) continue;
             ++seen;
-            /* A session log is sent after 15 quiet minutes, not after every pause between pulls;
-             * the account service forwards a re-sent log's new lines only. */
-            if (size > 256u * 1024u * 1024u || modified > now || now - modified < UINT64_C(9000000000)) { ++pending; continue; }
+            /* A session log is sent once it has stopped growing for 15 minutes,
+             * as this companion saw it; the account service forwards a re-sent
+             * log's new lines only. */
             if (addon_join(pattern, game, "Logs") || addon_join(path, pattern, name)) { ++pending; continue; }
+            uint64_t real = 0, listed = 0, stamp = 0;
+            if (contributor_true_size(path, &real)) { ++pending; continue; }
+            int closed = real == size && modified <= now && now - modified >= CONTRIBUTOR_QUIET_MS * 10000u;
+            ULONGLONG since = contributor_unchanged_since(loop, path, real, closed);
+            if (real > 256u * 1024u * 1024u || GetTickCount64() - since < CONTRIBUTOR_QUIET_MS) { ++pending; continue; }
             const char *digest = sync_hash(&loop->files, path);
-            if (!digest || contributor_receipt(dir, secret, digest, receipt)) { ++pending; continue; }
+            if (!digest || sync_info(path, &listed, &stamp) || listed != real) { ++pending; continue; }
+            size = real;
+            if (contributor_receipt(dir, secret, digest, receipt)) { ++pending; continue; }
             if (addon_kind(receipt) == 1) continue;
             if (!secret && contributor_legacy_sent(dir, digest)) {
                 char note[160]; snprintf(note, sizeof(note), "{\"sha256\":\"%s\",\"status\":\"sent_by_legacy_uploader\"}", digest);

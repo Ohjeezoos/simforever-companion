@@ -405,7 +405,7 @@ static DWORD WINAPI desktop_sync_thread(void *context) {
         if (WaitForSingleObject(desktop_stop, 0) == WAIT_OBJECT_0) break;
         if (state != previous) { PostMessageW(d->window, SF_SYNC, (WPARAM)state, 0); previous = state; }
     } while (WaitForSingleObject(desktop_stop, 5000) == WAIT_TIMEOUT);
-    sync_cache_free(&cache); sync_cache_free(&contributions.files); return 0;
+    sync_cache_free(&cache); contributor_loop_free(&contributions); return 0;
 }
 static void desktop_start(Desktop *d) {
     if (d->worker || !d->installed || !d->share) return;

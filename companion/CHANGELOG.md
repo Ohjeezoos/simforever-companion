@@ -1,3 +1,11 @@
+# 0.42.0
+
+- Windows companions wait until a combat log has stopped growing for 15
+  minutes, as the companion itself sees its size, before sending it. The game
+  keeps the log open while you play, and Windows reports an open file's old
+  size and time, so 0.41.0 re-sent the whole growing log about every five
+  minutes during a session.
+
 # 0.41.0
 
 - Windows companions on the Simforever server send combat logs from C for

@@ -37,5 +37,20 @@ int main(int argc, char **argv) {
     long status = 0; assert(!contributor_request("device/status", "invalid", NULL, 0, &status));
     assert(!status);
     wchar_t *w = wide_path(path); assert(w && DeleteFileW(w)); free(w); free(path); free(receipt);
+    /* Quiet is the companion's own observation of the true size, not the
+     * directory entry an open log leaves stale. */
+    char *log = malloc(PATH_CAP); assert(log && !addon_join(log, argv[1], "WoWCombatLog-test.txt"));
+    assert(!capture_atomic(log, "12345", 5)); uint64_t real = 0;
+    assert(!contributor_true_size(log, &real) && real == 5);
+    ContributionLoop loop = {0};
+    ULONGLONG first = contributor_unchanged_since(&loop, log, real, 0);
+    assert(GetTickCount64() - first < CONTRIBUTOR_QUIET_MS);
+    assert(contributor_unchanged_since(&loop, log, real, 1) == first);
+    Sleep(20); assert(contributor_unchanged_since(&loop, log, real + 1, 1) > first);
+    char other[16] = "closed.txt";
+    assert(GetTickCount64() - contributor_unchanged_since(&loop, other, 3, 1) >= CONTRIBUTOR_QUIET_MS
+           || GetTickCount64() < CONTRIBUTOR_QUIET_MS);
+    contributor_loop_free(&loop); assert(!loop.growth);
+    w = wide_path(log); assert(w && DeleteFileW(w)); free(w); free(log);
     puts("Contributor credential checks passed."); return 0;
 }
