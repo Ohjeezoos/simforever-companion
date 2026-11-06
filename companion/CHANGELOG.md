@@ -1,3 +1,11 @@
+# 0.44.0
+
+- A running companion checks for an update every six hours, as well as when
+  it starts. Once a newer release is downloaded and verified, it stops its
+  worker and restarts into it: on Windows quietly in the tray, between tasks
+  (never during setup or account linking); on Linux and macOS in place, so a
+  terminal or service keeps running it. `--no-update` turns off both checks.
+
 # 0.43.0
 
 - Windows companions send only the part of a combat log the Simforever

@@ -11,7 +11,9 @@ int main(int argc, char **argv) {
     size_t previous_size = 0; char *previous = capture_read(path, &previous_size);
     unsigned first = previous ? (unsigned)strtoul(previous, NULL, 10) + 1 : 1; free(previous);
     /* Keep the heartbeat monotonic across pause/resume worker restarts. */
+    char *stop = malloc(PATH_CAP); if (!stop || addon_join(stop, config, "stop")) return 1;
     for (unsigned count = first;; ++count) {
+        if (addon_kind(stop) == 1) return 0; /* the restart check's end */
         char number[32]; int n = snprintf(number, sizeof(number), "%u", count);
         if (capture_atomic(path, number, (size_t)n)) return 1;
         Sleep(100);

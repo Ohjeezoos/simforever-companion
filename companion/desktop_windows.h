@@ -26,6 +26,48 @@
 #define SF_STATUS_TIMER 1
 #define SF_ADDON_TIMER 2
 #define SF_ADDON_CHECKED (WM_APP + 10)
+/* A running companion's own update: checked every few hours, and once one is
+ * verified the host quits and starts it in the background. */
+#define SF_UPDATE_TIMER 3
+#define SF_UPDATE_READY (WM_APP + 11)
+static char desktop_restart_path[PATH_CAP];
+static volatile LONG desktop_update_checking;
+static DWORD WINAPI desktop_update_thread(void *window) {
+    char *cache = malloc(PATH_CAP), *next = malloc(PATH_CAP), *found = NULL;
+    if (cache && next && !cache_dir(cache) && update(cache, next, download) > 0) {
+        found = malloc(strlen(next) + 1); if (found) strcpy(found, next);
+    }
+    free(cache); free(next);
+    if (!PostMessageW((HWND)window, SF_UPDATE_READY, 0, (LPARAM)found)) { free(found); InterlockedExchange(&desktop_update_checking, 0); }
+    return 0;
+}
+/* The new release, detached, with this run's arguments and the hand-off. */
+static int desktop_start_release(const char *path, int argc, char **argv) {
+    char **args = restart_args(path, argc, argv); if (!args) return -1;
+    wchar_t *exe = wide(path), *command = calloc(PATH_CAP * 4, sizeof(wchar_t)); size_t used = 0, cap = PATH_CAP * 4; int ok = exe && command;
+    for (int i = 0; ok && args[i]; ++i) {
+        wchar_t *arg = wide(args[i]); if (!arg) { ok = 0; break; }
+        if (used + 3 >= cap) { free(arg); ok = 0; break; }
+        if (i) command[used++] = ' ';
+        command[used++] = '"'; size_t slashes = 0;
+        for (wchar_t *q = arg;; ++q) {
+            if (*q == '\\') { ++slashes; continue; }
+            size_t n = *q == '"' || !*q ? slashes * 2 : slashes;
+            if (*q == '"') ++n;
+            if (used + n + 3 >= cap) { ok = 0; break; }
+            while (n--) command[used++] = '\\';
+            slashes = 0;
+            if (!*q) break;
+            command[used++] = *q;
+        }
+        if (ok) command[used++] = '"';
+        free(arg);
+    }
+    STARTUPINFOW si = {0}; PROCESS_INFORMATION pi = {0}; si.cb = sizeof(si);
+    if (ok) { command[used] = 0; ok = CreateProcessW(exe, command, NULL, NULL, FALSE, 0, NULL, NULL, &si, &pi); }
+    if (ok) { CloseHandle(pi.hThread); CloseHandle(pi.hProcess); }
+    free(exe); free(command); free(args); return ok ? 0 : -1;
+}
 #define SF_BROWSE 101
 #define SF_DEEP 102
 #define SF_CANCEL 103
@@ -668,7 +710,22 @@ static LRESULT CALLBACK desktop_proc(HWND window, UINT message, WPARAM wp, LPARA
             if (d->ready) desktop_status(d, L"Simforever Probe is installed. Log in or reload the game interface to load it.");
         }
         return 0;
+    case SF_UPDATE_READY: {
+        /* Restart only between tasks: never mid-setup or while linking. */
+        char *found = (char *)lp; InterlockedExchange(&desktop_update_checking, 0);
+        if (found && !d->stopping && !d->busy && !d->link_thread && strlen(found) < PATH_CAP) {
+            strcpy(desktop_restart_path, found); desktop_quit(d);
+        }
+        free(found); return 0;
+    }
     case WM_TIMER:
+        if (wp == SF_UPDATE_TIMER) {
+            if (!InterlockedCompareExchange(&desktop_update_checking, 1, 0)) {
+                HANDLE t = CreateThread(NULL, 0, desktop_update_thread, window, 0, NULL);
+                if (t) CloseHandle(t); else InterlockedExchange(&desktop_update_checking, 0);
+            }
+            return 0;
+        }
         if (wp == SF_ADDON_TIMER) {
             if (d->addon_held && !no_addon && !InterlockedCompareExchange(&d->addon_checking, 1, 0)) {
                 DesktopAddonCheck *c = malloc(sizeof(*c));
@@ -682,7 +739,7 @@ static LRESULT CALLBACK desktop_proc(HWND window, UINT message, WPARAM wp, LPARA
         return 0;
     case WM_DESTROY:
         sf_view_close(d->view); d->view = NULL;
-        desktop_tray(d, NIM_DELETE); KillTimer(window, SF_STATUS_TIMER); KillTimer(window, SF_ADDON_TIMER); PostQuitMessage(0); return 0;
+        desktop_tray(d, NIM_DELETE); KillTimer(window, SF_STATUS_TIMER); KillTimer(window, SF_ADDON_TIMER); KillTimer(window, SF_UPDATE_TIMER); PostQuitMessage(0); return 0;
     }
     return DefWindowProcW(window, message, wp, lp);
 }
@@ -742,6 +799,7 @@ static int desktop_run(const char *worker_path, int argc, char **argv, int backg
             if (attribute) attribute(d->window, 20, &dark, sizeof(dark)); FreeLibrary(dwm);
         }
         desktop_tray(d, NIM_ADD); SetTimer(d->window, SF_STATUS_TIMER, 250, NULL);
+        if (!no_update_check) SetTimer(d->window, SF_UPDATE_TIMER, SF_UPDATE_EVERY_SECONDS * 1000u, NULL);
         int configured = desktop_configured(d);
         d->complete = 1; d->autorun = desktop_autorun_enabled() || !configured;
         char *prefs_path = malloc(PATH_CAP); size_t prefs_size = 0;
@@ -770,6 +828,9 @@ static int desktop_run(const char *worker_path, int argc, char **argv, int backg
     }
     if (desktop_job) CloseHandle(desktop_job); desktop_job = NULL;
     CloseHandle(desktop_stop); desktop_stop = NULL; CloseHandle(d->scan_cancel); CloseHandle(d->mutex);
+    /* The single-instance lock is released, so the update can take over. */
+    if (desktop_restart_path[0] && desktop_start_release(desktop_restart_path, d->argc, d->argv))
+        result = 1;
     DeleteObject(d->font); DeleteObject(d->heading); DeleteObject(d->background);
     DeleteCriticalSection(&d->progress_lock); CoUninitialize(); free(d); return result;
 }

@@ -174,7 +174,23 @@ int main(int argc, char **argv) {
     assert(!addon_join(paths[2], paths[1], "Interface/AddOns/SimforeverProbe") && addon_matches(paths[2]));
     assert(!((unsigned)SendMessageW(window, SF_STATE, 0, 0) & 2)); /* prior refusal retained */
     quit_host(window, thread);
+    /* A verified update makes the host quit and start the new release,
+     * detached, with its own arguments. The stand-in worker plays the new
+     * release: it writes the heartbeat into the -config it is given, which no
+     * worker of this unconfigured host does. */
+    unsigned restart_before = heartbeat(paths[0]);
+    test_background = 1; thread = CreateThread(NULL, 0, host, NULL, 0, NULL); assert(thread); window = wait_window(); assert(window);
+    Sleep(300);
+    char *found = malloc(strlen(test_worker) + 1); assert(found); strcpy(found, test_worker);
+    assert(PostMessageW(window, SF_UPDATE_READY, 0, (LPARAM)found));
+    assert(WaitForSingleObject(thread, 15000) == WAIT_OBJECT_0); CloseHandle(thread);
+    for (int i = 0; i < 100 && heartbeat(paths[0]) <= restart_before; ++i) Sleep(100);
+    assert(heartbeat(paths[0]) > restart_before);
+    assert(!addon_join(paths[4], paths[0], "stop") && !capture_atomic(paths[4], "1", 1));
+    unsigned stopped = 0; for (int i = 0; i < 50; ++i) { Sleep(200); unsigned now = heartbeat(paths[0]); if (now == stopped) break; stopped = now; }
+    Sleep(300); assert(heartbeat(paths[0]) == stopped);
+    desktop_restart_path[0] = 0;
     assert(!desktop_autorun(SF_AUTORUN_KEY, "unused", paths[0], 0)); RegDeleteKeyW(HKEY_CURRENT_USER, SF_AUTORUN_KEY);
     CoUninitialize(); free(paths);
-    puts("Windows desktop checks passed: automatic install/sharing, actual WebView2 bridge and settings, close/reopen, single instance, silent startup without browser, and recursive manual fallback"); return 0;
+    puts("Windows desktop checks passed: automatic install/sharing, actual WebView2 bridge and settings, close/reopen, single instance, silent startup without browser, recursive manual fallback, and restart into a verified update"); return 0;
 }

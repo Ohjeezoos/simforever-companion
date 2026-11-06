@@ -459,6 +459,29 @@ fallback:
 #include "logs_posix.h"
 #endif
 static int no_collect, collect_yes, no_addon, no_logs;
+/* A running companion looks for an update this often and, once one is
+ * verified, restarts into it; startup checks first as before. --no-update
+ * turns both off. */
+#ifndef SF_UPDATE_EVERY_SECONDS
+#define SF_UPDATE_EVERY_SECONDS (6 * 60 * 60)
+#endif
+static int no_update_check;
+/* What a restart into `next` is given: the player's own arguments, the
+ * launcher switches this run had, and the hand-off marker. */
+static char **restart_args(const char *next, int argc, char **argv) {
+    char **out = calloc((size_t)argc + 10, sizeof(*out)); if (!out) return NULL;
+    int n = 0; out[n++] = (char *)next;
+    for (int i = 1; i < argc; ++i) out[n++] = argv[i];
+    out[n++] = "--from-update";
+    if (no_collect) out[n++] = "--no-collect";
+    if (collect_yes) out[n++] = "--collect-yes";
+    if (no_addon) out[n++] = "--no-addon";
+    if (no_logs) out[n++] = "--no-logs";
+#ifdef _WIN32
+    out[n++] = "--background";
+#endif
+    out[n] = NULL; return out;
+}
 #ifdef _WIN32
 static int background_start, no_desktop, console_only;
 static HANDLE desktop_stop, desktop_job;
@@ -540,23 +563,42 @@ static int launch(const char *path, int argc, char **argv, int handoff) {
     /* C sends combat logs, so the legacy worker is told not to. */
     LogsSender logs; int send_logs = !handoff && !no_logs && logs_init(&logs, argc, argv);
     if (send_logs) args[next++] = "-logs=false";
-    if (!collect && !addon.active && !send_logs) {
+    /* The loop also checks for updates, so it runs unless nothing needs it. */
+    if (!collect && !addon.active && !send_logs && (handoff || no_update_check)) {
         execv(path, args); perror("Cannot start companion"); free(args); return -1;
     }
     if (collect) collector.grant = collect_yes;
     pid_t child = fork();
     if (child < 0) { free(args); return -1; }
     if (!child) { execv(path, args); perror("Cannot start companion"); _exit(127); }
-    free(args);
     addon_start(&addon);
     void (*old_int)(int) = signal(SIGINT, capture_stop_signal);
     void (*old_term)(int) = signal(SIGTERM, capture_stop_signal);
-    int status = 0;
+    int status = 0; time_t next_update = time(NULL) + SF_UPDATE_EVERY_SECONDS;
     for (;;) {
         pid_t done = waitpid(child, &status, WNOHANG);
         if (done == child) break;
         if (done < 0 && errno != EINTR) { status = 1 << 8; break; }
         if (capture_signal) { kill(child, capture_signal); capture_signal = 0; }
+        /* A verified update replaces this process; the worker is stopped
+         * first and restarted only if the new release cannot be started. */
+        if (!no_update_check && time(NULL) >= next_update) {
+            next_update = time(NULL) + SF_UPDATE_EVERY_SECONDS;
+            char cache[PATH_CAP], fresh[PATH_CAP];
+            if (!cache_dir(cache) && update(cache, fresh, download) > 0) {
+                char **again = restart_args(fresh, argc, argv);
+                if (again) {
+                    kill(child, SIGTERM); waitpid(child, &status, 0);
+                    if (collect) { collector.poll = 0; capture_tick(&collector, capture_post); capture_close(&collector); collect = 0; }
+                    if (send_logs) { logs_free(&logs); send_logs = 0; }
+                    signal(SIGINT, old_int); signal(SIGTERM, old_term);
+                    execv(fresh, again); perror("Cannot start the updated companion"); free(again);
+                    child = fork();
+                    if (child < 0) { status = 1 << 8; break; }
+                    if (!child) { execv(path, args); _exit(127); }
+                }
+            }
+        }
         if (collect) capture_tick(&collector, capture_post);
         addon_poll(&addon);
         if (send_logs) logs_tick(&logs);
@@ -564,7 +606,7 @@ static int launch(const char *path, int argc, char **argv, int handoff) {
     }
     if (send_logs) logs_free(&logs);
     if (collect) { collector.poll = 0; capture_tick(&collector, capture_post); capture_close(&collector); }
-    signal(SIGINT, old_int); signal(SIGTERM, old_term);
+    signal(SIGINT, old_int); signal(SIGTERM, old_term); free(args);
     return WIFEXITED(status) ? WEXITSTATUS(status) : 128 + WTERMSIG(status);
 }
 #endif
@@ -599,7 +641,8 @@ static int run(int argc, char **argv) {
     int version = argc == 2 && (!strcmp(argv[1], "-version") || !strcmp(argv[1], "--version"));
     int skip = 0, check = 0, count = 1;
     for (int i = 1; i < argc; ++i) {
-        if (!strcmp(argv[i], "--no-update") || !strcmp(argv[i], "--from-update")) skip = 1;
+        if (!strcmp(argv[i], "--no-update")) { skip = 1; no_update_check = 1; }
+        else if (!strcmp(argv[i], "--from-update")) skip = 1;
         else if (!strcmp(argv[i], "--no-collect")) no_collect = 1;
         else if (!strcmp(argv[i], "--collect-yes")) collect_yes = 1;
         else if (!strcmp(argv[i], "--no-addon")) no_addon = 1;

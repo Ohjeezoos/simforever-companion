@@ -33,8 +33,23 @@ static Release release_for(const char *path, const char *version) {
     assert(!file_size(f, &r.size) && !sha256(f, r.size, d)); fclose(f);
     hex_digest(d, r.hash); strcpy(r.version, version); return r;
 }
+static void restart_checks(void) {
+    /* A restart keeps the player's arguments and this run's switches. */
+    char *in[] = {"old", "-config", "a \"quoted\" dir", "-logs=false"};
+    no_collect = 1; no_logs = 1;
+    char **r = restart_args("new", 4, in); assert(r);
+    assert(!strcmp(r[0], "new") && !strcmp(r[1], "-config") && !strcmp(r[2], "a \"quoted\" dir") && !strcmp(r[3], "-logs=false"));
+    assert(!strcmp(r[4], "--from-update") && !strcmp(r[5], "--no-collect") && !strcmp(r[6], "--no-logs"));
+#ifdef _WIN32
+    assert(!strcmp(r[7], "--background") && !r[8]);
+#else
+    assert(!r[7]);
+#endif
+    free(r); no_collect = 0; no_logs = 0;
+    assert(SF_UPDATE_EVERY_SECONDS >= 60);
+}
 int main(int argc, char **argv) {
-    assert(argc == 2);
+    assert(argc == 2); restart_checks();
     char *base = argv[1]; assert(!mkdir_tree(base));
     char payload[PATH_CAP], raw[PATH_CAP], bundled[PATH_CAP], extracted[PATH_CAP], next[PATH_CAP], mf[PATH_CAP];
     assert(!path_join(payload, base, "payload") && !path_join(raw, base, "raw") && !path_join(bundled, base, "bundle") && !path_join(mf, base, "manifest"));
