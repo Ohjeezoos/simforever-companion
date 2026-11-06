@@ -98,6 +98,10 @@ def main():
         discovery_test = tmp / ("discovery-test" + suffix)
         subprocess.run(c_command(ROOT / "companion/test_discovery.c", discovery_test, args.target, args.version, test=True), cwd=tmp, check=True)
         subprocess.run([str(discovery_test), str(tmp / "discovery-checks")], check=True)
+        if not suffix:
+            logs_test = tmp / "logs-test"
+            subprocess.run(c_command(ROOT / "companion/test_logs.c", logs_test, args.target, args.version, test=True), cwd=tmp, check=True)
+            subprocess.run([str(logs_test), str(tmp / "logs-checks")], check=True)
         if suffix:
             contributor_test = tmp / "contributor-test.exe"
             subprocess.run(c_command(ROOT / "companion/test_contributor.c", contributor_test, args.target, args.version, test=True), cwd=tmp, check=True)
@@ -122,7 +126,7 @@ def main():
             ["-name", "--no-addon", "-logs=false"],
         ]
         for values in cases:
-            result = subprocess.run([str(args_bundle), *desktop_flags, "--no-update", "--no-collect", "--no-addon", *values], env=smoke_env, capture_output=True, check=True)
+            result = subprocess.run([str(args_bundle), *desktop_flags, "--no-update", "--no-collect", "--no-addon", "--no-logs", *values], env=smoke_env, capture_output=True, check=True)
             got = [bytes.fromhex(line.decode("ascii")).decode("utf-8") for line in result.stdout.splitlines()]
             if got != values:
                 raise RuntimeError(f"argument forwarding failed: {got!r} != {values!r}")

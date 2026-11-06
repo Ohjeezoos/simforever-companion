@@ -455,7 +455,10 @@ fallback:
 
 #include "capture.h"
 #include "addon.h"
-static int no_collect, collect_yes, no_addon;
+#ifndef _WIN32
+#include "logs_posix.h"
+#endif
+static int no_collect, collect_yes, no_addon, no_logs;
 #ifdef _WIN32
 static int background_start, no_desktop, console_only;
 static HANDLE desktop_stop, desktop_job;
@@ -525,15 +528,19 @@ static int launch(const char *path, int argc, char **argv, int handoff) {
 static volatile sig_atomic_t capture_signal;
 static void capture_stop_signal(int sig) { capture_signal = sig; }
 static int launch(const char *path, int argc, char **argv, int handoff) {
-    char **args = calloc((size_t)argc + (size_t)handoff + 1, sizeof(*args)); if (!args) return 1;
+    char **args = calloc((size_t)argc + (size_t)handoff + 2, sizeof(*args)); if (!args) return 1;
     args[0] = (char *)path;
     for (int i = 1; i < argc; ++i) args[i] = argv[i];
-    if (handoff) args[argc] = "--from-update";
+    int next = argc;
+    if (handoff) args[next++] = "--from-update";
     AddonManager addon = {0};
     if (!handoff && !no_addon) (void)addon_init(&addon, argc, argv);
     CaptureCollector collector;
     int collect = !handoff && !no_collect && capture_init(&collector, argc, argv);
-    if (!collect && !addon.active) {
+    /* C sends combat logs, so the legacy worker is told not to. */
+    LogsSender logs; int send_logs = !handoff && !no_logs && logs_init(&logs, argc, argv);
+    if (send_logs) args[next++] = "-logs=false";
+    if (!collect && !addon.active && !send_logs) {
         execv(path, args); perror("Cannot start companion"); free(args); return -1;
     }
     if (collect) collector.grant = collect_yes;
@@ -552,8 +559,10 @@ static int launch(const char *path, int argc, char **argv, int handoff) {
         if (capture_signal) { kill(child, capture_signal); capture_signal = 0; }
         if (collect) capture_tick(&collector, capture_post);
         addon_poll(&addon);
+        if (send_logs) logs_tick(&logs);
         sleep(1);
     }
+    if (send_logs) logs_free(&logs);
     if (collect) { collector.poll = 0; capture_tick(&collector, capture_post); capture_close(&collector); }
     signal(SIGINT, old_int); signal(SIGTERM, old_term);
     return WIFEXITED(status) ? WEXITSTATUS(status) : 128 + WTERMSIG(status);
@@ -569,6 +578,7 @@ static int launch_update(const char *next, int argc, char **argv) {
     if (no_collect) argv[count++] = "--no-collect";
     if (collect_yes) argv[count++] = "--collect-yes";
     if (no_addon) argv[count++] = "--no-addon";
+    if (no_logs) argv[count++] = "--no-logs";
 #ifdef _WIN32
     if (background_start) argv[count++] = "--background";
     if (no_desktop) argv[count++] = "--no-desktop";
@@ -593,6 +603,7 @@ static int run(int argc, char **argv) {
         else if (!strcmp(argv[i], "--no-collect")) no_collect = 1;
         else if (!strcmp(argv[i], "--collect-yes")) collect_yes = 1;
         else if (!strcmp(argv[i], "--no-addon")) no_addon = 1;
+        else if (!strcmp(argv[i], "--no-logs")) no_logs = 1;
         else if (!strcmp(argv[i], "--check-update")) check = 1;
 #ifdef _WIN32
         else if (!strcmp(argv[i], "--background")) background_start = 1;

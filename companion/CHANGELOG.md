@@ -1,3 +1,24 @@
+# 0.43.0
+
+- Windows companions send only the part of a combat log the Simforever
+  server does not have yet. The server continues the SHA-256 of the earlier
+  upload over the new bytes, so the whole log is still verified. A log the
+  server no longer knows is sent whole once.
+- Logs over 256 MB are sent in parts of up to 16 MB, each ending on a line,
+  instead of staying queued.
+- Anonymous Windows companions send combat logs again. Since 0.41.0 the
+  legacy worker saved the `-logs=false` the companion gives it as
+  `skipCombatLogs`, and the C uploader then read that as the player's choice,
+  so no anonymous log was sent. The C uploader now follows the sharing
+  setting, a `-logs=false` given on the command line, and
+  `shareCombatLogs: false` in config.json. A `-logs=false` someone ran once
+  by hand before 0.41.0 and that was saved is no longer kept; give it again.
+- Linux and macOS companions, and companions using a custom upload server,
+  send combat logs from C as well: on the Simforever server as appends, and
+  to a custom server's own log route as the whole file once it has gone
+  unchanged for 15 minutes. The legacy worker no longer re-sends logs every
+  minute. `--no-logs` turns the C sender off for a launcher run.
+
 # 0.42.0
 
 - Windows companions wait until a combat log has stopped growing for 15

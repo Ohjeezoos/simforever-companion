@@ -363,8 +363,8 @@ static DWORD WINAPI desktop_worker_thread(void *ctx) {
     int n = d->argc;
     args[n++] = "-console"; args[n++] = "-config"; args[n++] = d->config;
     args[n++] = "-wow"; args[n++] = d->game;
-    /* On the Simforever server, C sends combat logs for linked and anonymous players alike. */
-    if (d->linked || contributor_endpoint(d->config)) args[n++] = "-logs=false";
+    /* C sends combat logs on every server, so the legacy worker never does. */
+    args[n++] = "-logs=false";
     int code = 0;
     while (WaitForSingleObject(desktop_stop, 0) == WAIT_TIMEOUT) {
         code = launch(d->worker_path, n, args, 0);
@@ -372,10 +372,23 @@ static DWORD WINAPI desktop_worker_thread(void *ctx) {
     }
     free(args); desktop_worker_config = NULL; free(worker_config); PostMessageW(d->window, SF_WORKER_DONE, (WPARAM)code, 0); return (DWORD)code;
 }
+/* Whether combat logs are shared. The worker saves the -logs=false this host
+ * gives it as `skipCombatLogs`, so that key is the worker's and not the
+ * player's: 0.41.0 and 0.42.0 read it and so sent no anonymous logs. A
+ * -logs=false the player gives on the command line still keeps them local, as
+ * does `shareCombatLogs: false` in config.json. */
+static int desktop_logs_wanted(Desktop *d, cJSON *prefs) {
+    for (int i = 1; i < d->argc; ++i) {
+        const char *a = d->argv[i]; if (*a != '-') continue; ++a; if (*a == '-') ++a;
+        if (!strcmp(a, "logs=false") || !strcmp(a, "logs=0") || (!strcmp(a, "logs") && i + 1 < d->argc && (!strcmp(d->argv[i + 1], "false") || !strcmp(d->argv[i + 1], "0")))) return 0;
+    }
+    cJSON *share = cJSON_GetObjectItemCaseSensitive(prefs, "shareCombatLogs");
+    return !share || cJSON_IsTrue(share);
+}
 static DWORD WINAPI desktop_sync_thread(void *context) {
     Desktop *d = context; SyncCache cache = {0}; ContributionLoop contributions = {0}; int previous = -1;
     do {
-        int c_logs = d->linked || contributor_endpoint(d->config);
+        int c_logs = 1;
         int state = sync_state_mode(&cache, d->config, d->linked, c_logs);
         char secret[65] = {0};
         if (d->linked && contributor_endpoint(d->config) && contributor_load(d->config, secret)) {
@@ -387,17 +400,18 @@ static DWORD WINAPI desktop_sync_thread(void *context) {
                 contributions.next_poll = GetTickCount64() + 60000;
             }
             cJSON *prefs = capture_config(d->config);
-            if (!cJSON_IsTrue(cJSON_GetObjectItemCaseSensitive(prefs, "skipCombatLogs"))) {
-                int logs = contributor_logs(&contributions, d->config, d->game, secret);
+            if (desktop_logs_wanted(d, prefs)) {
+                int logs = contributor_logs(&contributions, d->config, d->game, secret, NULL, NULL);
                 if (logs > 0) state = SF_SYNC_PENDING; else if (!logs && state == SF_SYNC_READY) state = SF_SYNC_DONE;
             }
             cJSON_Delete(prefs);
             SecureZeroMemory(secret, sizeof(secret));
-        } else if (!d->linked && c_logs) {
+        } else if (!d->linked) {
             cJSON *prefs = capture_config(d->config);
-            if (cJSON_IsTrue(cJSON_GetObjectItemCaseSensitive(prefs, "consentGranted")) &&
-                !cJSON_IsTrue(cJSON_GetObjectItemCaseSensitive(prefs, "skipCombatLogs"))) {
-                int logs = contributor_logs(&contributions, d->config, d->game, NULL);
+            char custom[4096], display[128]; int simforever = contributor_endpoint(d->config);
+            if (cJSON_IsTrue(cJSON_GetObjectItemCaseSensitive(prefs, "consentGranted")) && desktop_logs_wanted(d, prefs) &&
+                (simforever || !contributor_custom_url(d->config, custom, display))) {
+                int logs = contributor_logs(&contributions, d->config, d->game, NULL, simforever ? NULL : custom, simforever ? NULL : display);
                 if (logs > 0) state = SF_SYNC_PENDING; else if (!logs && state == SF_SYNC_READY) state = SF_SYNC_DONE;
             }
             cJSON_Delete(prefs);

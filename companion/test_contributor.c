@@ -51,6 +51,18 @@ int main(int argc, char **argv) {
     assert(GetTickCount64() - contributor_unchanged_since(&loop, other, 3, 1) >= CONTRIBUTOR_QUIET_MS
            || GetTickCount64() < CONTRIBUTOR_QUIET_MS);
     contributor_loop_free(&loop); assert(!loop.growth);
+    /* What the service acknowledged of a log, per account and per log. */
+    char *progress = malloc(PATH_CAP), *anon = malloc(PATH_CAP), *later = malloc(PATH_CAP), sha[65]; uint64_t had = 0;
+    assert(progress && anon && later && !contributor_progress_path(argv[1], token, "WoWCombatLog-1.txt", progress));
+    assert(!contributor_progress_path(argv[1], NULL, "WoWCombatLog-1.txt", anon) && strcmp(progress, anon));
+    assert(!contributor_progress_path(argv[1], token, "WoWCombatLog-2.txt", later) && strcmp(progress, later));
+    assert(contributor_progress(progress, &had, sha) == -1);
+    contributor_progress_save(progress, 123456789012ULL, digest);
+    assert(!contributor_progress(progress, &had, sha) && had == 123456789012ULL && !strcmp(sha, digest));
+    const char *bad = "{\"size\":5,\"sha256\":\"XYZ\"}";
+    assert(!capture_atomic(progress, bad, strlen(bad)) && contributor_progress(progress, &had, sha) == -1);
+    assert(!contributor_request_base("logs", NULL, NULL, 0, "not-a-digest", &status) && !status);
+    w = wide_path(progress); assert(w && DeleteFileW(w)); free(w); free(progress); free(anon); free(later);
     w = wide_path(log); assert(w && DeleteFileW(w)); free(w); free(log);
     puts("Contributor credential checks passed."); return 0;
 }
