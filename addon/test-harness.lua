@@ -899,3 +899,34 @@ do
     GetBuildInfo, C_CVar, GetCVar, SetCVar = oldBuild, oldCVars, oldGet, oldSet
     print('ok: launch 70707 identity, namespace-only CVars, passive collection and one login notice')
 end
+
+do
+    -- A party member seen twice at one level and one gear set is one record,
+    -- and it carries when it was last seen and the auras it wore then.
+    local oldIsPlayer, oldServer, oldAuras = UnitIsPlayer, GetServerTime, C_UnitAuras
+    local now = 1000
+    UnitIsPlayer = function(unit) return unit == "player" or group[unit] ~= nil end
+    GetServerTime = function() return now end
+    C_UnitAuras = { GetAuraDataByIndex = function(unit, i, filter)
+        if unit == "party1" and filter == "HELPFUL" and i == 1 then
+            return { spellId = now < 2000 and 465 or 10290, name = "Devotion Aura", isHelpful = true }
+        end
+    end }
+    local _, d = run(function()
+        fire("GROUP_ROSTER_UPDATE")
+        now = 3600
+        fire("GROUP_ROSTER_UPDATE")
+    end, nil, true)
+    local rows = 0
+    for _, p in pairs(d.people or {}) do
+        if p.guid == "Player-1-BBBBBB" then
+            rows = rows + 1
+            assert(p.at == 1000 and p.lastAt == 3600, "a sighting again did not extend the level's span")
+            assert(p.auras and p.auras[1] == 465 and p.lastAuras and p.lastAuras[1] == 10290,
+                "a nearby player's auras were not kept at the first and last sighting")
+        end
+    end
+    assert(rows == 1, "one character at one level and gear became " .. rows .. " records")
+    UnitIsPlayer, GetServerTime, C_UnitAuras = oldIsPlayer, oldServer, oldAuras
+    print("ok: a nearby player's level spans its sightings and carries its auras")
+end

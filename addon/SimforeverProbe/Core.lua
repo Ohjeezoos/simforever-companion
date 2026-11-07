@@ -1,7 +1,7 @@
 -- SavedVariables initialization, build history and bounded record retention.
 local ADDON, ns = ...
 
-ns.VERSION = "0.35.0"
+ns.VERSION = "0.36.0"
 ns.MAX_EVENTS = 20000
 ns.MAX_SNAPSHOTS = 600
 

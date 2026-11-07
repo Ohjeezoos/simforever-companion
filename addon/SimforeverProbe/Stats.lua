@@ -416,7 +416,13 @@ local function record(row, worn)
 	end
 	local key = ("%s|%d|%s"):format(row.guid, row.level, table.concat(sig, ","))
 	ns.db.people = ns.db.people or {}
-	if ns.db.people[key] then
+	local had = ns.db.people[key]
+	if had then
+		-- Seen again at the same level and gear: how long the level held is
+		-- what joins this character's later cast lines to it.
+		if (row.at or 0) > (had.lastAt or had.at or 0) then
+			had.lastAt, had.lastAuras = row.at, row.auras
+		end
 		return
 	end
 	ns.peopleCount = (ns.peopleCount or 0) + 1
@@ -510,6 +516,7 @@ local function harvest(unit)
 		armorPos = pos,
 		armorNeg = neg,
 		sex = ns.api("UnitSex", unit),
+		auras = ns.aurasOn(unit),
 		at = ns.now and ns.now() or 0,
 	}
 	local worn = gear(unit)

@@ -1,3 +1,9 @@
+# 0.46.0
+
+- Bundles Simforever Probe 0.36.0, which keeps the last time each nearby
+  player was seen at a level and records the auras they carry. The addon
+  installs once the release gate names 0.36.0.
+
 # 0.45.0
 
 - Windows companions no longer flash terminal windows when they start or

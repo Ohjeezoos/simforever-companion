@@ -2,7 +2,7 @@
 ## Title: Simforever Probe
 ## Notes: Automatic combat logging and character data collection for WoW Forever.
 ## Author: simforever
-## Version: 0.35.0
+## Version: 0.36.0
 ## SavedVariables: SimforeverProbeDB
 ## X-License: MIT
 ## X-Website: https://forever.howtoguides.online
