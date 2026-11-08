@@ -444,7 +444,7 @@ static DWORD WINAPI desktop_sync_thread(void *context) {
             cJSON *prefs = capture_config(d->config);
             if (desktop_logs_wanted(d, prefs)) {
                 int logs = contributor_logs(&contributions, d->config, d->game, secret, NULL, NULL);
-                if (logs > 0) state = SF_SYNC_PENDING; else if (!logs && state == SF_SYNC_READY) state = SF_SYNC_DONE;
+                state = sync_with_logs(state, logs, contributions.waiting);
             }
             cJSON_Delete(prefs);
             SecureZeroMemory(secret, sizeof(secret));
@@ -454,7 +454,7 @@ static DWORD WINAPI desktop_sync_thread(void *context) {
             if (cJSON_IsTrue(cJSON_GetObjectItemCaseSensitive(prefs, "consentGranted")) && desktop_logs_wanted(d, prefs) &&
                 (simforever || !contributor_custom_url(d->config, custom, display))) {
                 int logs = contributor_logs(&contributions, d->config, d->game, NULL, simforever ? NULL : custom, simforever ? NULL : display);
-                if (logs > 0) state = SF_SYNC_PENDING; else if (!logs && state == SF_SYNC_READY) state = SF_SYNC_DONE;
+                state = sync_with_logs(state, logs, contributions.waiting);
             }
             cJSON_Delete(prefs);
         }
@@ -698,6 +698,7 @@ static LRESULT CALLBACK desktop_proc(HWND window, UINT message, WPARAM wp, LPARA
         strcpy(d->kind, "good");
         if (wp == SF_SYNC_DONE) { strcpy(d->headline, "Synced"); desktop_status(d, L"New recordings will sync automatically. You can close this window."); }
         else if (wp == SF_SYNC_PENDING) { strcpy(d->headline, "Syncing"); d->kind[0] = 0; desktop_status(d, L"Recordings are uploading automatically. You can close this window."); }
+        else if (wp == SF_SYNC_WAITING) { strcpy(d->headline, "Recording"); strcpy(d->kind, "good"); desktop_status(d, L"Your current session syncs automatically about 15 minutes after you stop playing. You can close this window."); }
         else { strcpy(d->headline, "Ready to sync"); desktop_status(d, L"Play WoW Forever as usual. New recordings sync automatically."); }
         return 0;
     case SF_WORKER_DONE:

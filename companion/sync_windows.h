@@ -1,7 +1,15 @@
 /* Sync status uses the uploader's receipts and the current file contents. */
 #ifndef SF_SYNC_WINDOWS_H
 #define SF_SYNC_WINDOWS_H
-enum { SF_SYNC_PAUSED, SF_SYNC_READY, SF_SYNC_PENDING, SF_SYNC_DONE };
+enum { SF_SYNC_PAUSED, SF_SYNC_READY, SF_SYNC_PENDING, SF_SYNC_DONE, SF_SYNC_WAITING };
+/* What the window says once the combat logs are counted: `logs` are held or
+ * unsent, `waiting` of them only for the session to go quiet. A log the game
+ * is still writing is not an upload, so while nothing else is pending the
+ * player is told the session syncs after it, not that it is uploading. */
+static int sync_with_logs(int state, int logs, int waiting) {
+    if (logs > 0) return state != SF_SYNC_PENDING && waiting >= logs ? SF_SYNC_WAITING : SF_SYNC_PENDING;
+    return !logs && state == SF_SYNC_READY ? SF_SYNC_DONE : state;
+}
 typedef struct SyncHash { char *path; uint64_t size, modified; char hash[65]; struct SyncHash *next; } SyncHash;
 typedef struct { SyncHash *files; } SyncCache;
 static void sync_cache_free(SyncCache *cache) {

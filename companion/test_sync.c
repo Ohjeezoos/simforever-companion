@@ -47,8 +47,14 @@ int main(int argc, char **argv) {
     assert(!addon_join(path[2], collector->queue, "aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa.lua")); write_text(path[2], "unsupported recording");
     assert(sync_state(&cache, argv[1]) == SF_SYNC_PENDING); remove_file(path[2]); assert(sync_state(&cache, argv[1]) == SF_SYNC_DONE);
     cJSON_ReplaceItemInObjectCaseSensitive(cfg, "apiBase", cJSON_CreateString("https://other.invalid")); save_json(argv[1], "config.json", cfg); assert(sync_state(&cache, argv[1]) == SF_SYNC_PENDING);
+    /* A session log the game is still writing is a recording, not an upload;
+     * anything else pending keeps the window on Syncing. */
+    assert(sync_with_logs(SF_SYNC_DONE, 1, 1) == SF_SYNC_WAITING && sync_with_logs(SF_SYNC_READY, 2, 2) == SF_SYNC_WAITING);
+    assert(sync_with_logs(SF_SYNC_DONE, 2, 1) == SF_SYNC_PENDING && sync_with_logs(SF_SYNC_PENDING, 1, 1) == SF_SYNC_PENDING);
+    assert(sync_with_logs(SF_SYNC_READY, 0, 0) == SF_SYNC_DONE && sync_with_logs(SF_SYNC_PAUSED, 0, 0) == SF_SYNC_PAUSED);
+    assert(sync_with_logs(SF_SYNC_READY, -1, 0) == SF_SYNC_READY);
     assert(sync_uploaded_at("2026-11-02T15:00:00Z") == sync_uploaded_at("2026-11-02T17:00:00+02:00"));
     assert(!sync_uploaded_at("2026-11-02T15:00:NaNZ") && !sync_uploaded_at("invalid"));
     sync_cache_free(&cache); cJSON_Delete(cfg); cJSON_Delete(permission); cJSON_Delete(state); free(key); free(collector); free(path);
-    puts("sync status checks passed: empty, paused, pending evidence, exact acknowledgements, changed sources/logs, raw archives, endpoint changes and UTC offsets"); return 0;
+    puts("sync status checks passed: empty, paused, pending evidence, exact acknowledgements, changed sources/logs, raw archives, endpoint changes, a session still recording and UTC offsets"); return 0;
 }

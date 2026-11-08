@@ -1,3 +1,11 @@
+# 0.47.0
+
+- The window no longer says Syncing for the whole time you play. A session's
+  combat log is sent about 15 minutes after the game stops writing it; until
+  then the window says Recording, and Syncing means an upload is under way.
+- Bundles Simforever Probe 0.37.0: inspecting another player shows their gear
+  again, and nearby players are read at most every five minutes each.
+
 # 0.46.0
 
 - Bundles Simforever Probe 0.36.0, which keeps the last time each nearby

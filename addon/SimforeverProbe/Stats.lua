@@ -393,6 +393,32 @@ end
 
 local waiting, queue, queued = {}, {}, {}
 
+-- The client keeps one inspect target. The player's own Inspect window reads
+-- it too, so the background queue waits while that window is open and until
+-- the player's own request is answered (three seconds at most), and only ever
+-- clears an inspect it made.
+local ours, playerAt, answered = false, nil, true
+local function playerInspecting()
+	local frame = _G.InspectFrame
+	if frame and frame.IsShown and frame:IsShown() then
+		return true
+	end
+	return not answered and playerAt ~= nil and (ns.api("GetTime") or 0) - playerAt < 3
+end
+-- A character is inspected again only once this long has passed or its level
+-- changed; between, a sighting still extends the level's span. The queue then
+-- reaches new characters instead of re-reading the same few.
+local INSPECT_EVERY = 300
+local inspected = {}
+ns.playerInspecting = playerInspecting
+if type(hooksecurefunc) == "function" then
+	pcall(hooksecurefunc, "NotifyInspect", function()
+		if not ours then
+			playerAt, answered = ns.api("GetTime") or 0, false
+		end
+	end)
+end
+
 local function unitFor(guid)
 	local names = { "target", "mouseover", "focus" }
 	for i = 1, 4 do
@@ -417,6 +443,7 @@ local function record(row, worn)
 	local key = ("%s|%d|%s"):format(row.guid, row.level, table.concat(sig, ","))
 	ns.db.people = ns.db.people or {}
 	local had = ns.db.people[key]
+	inspected[row.guid] = { at = row.at or 0, level = row.level, key = key }
 	if had then
 		-- Seen again at the same level and gear: how long the level held is
 		-- what joins this character's later cast lines to it.
@@ -434,6 +461,9 @@ local function record(row, worn)
 end
 
 function ns.inspectReady(guid)
+	-- The first answer after the player's own request is theirs.
+	local theirs = not answered
+	answered = true
 	local row = waiting[guid]
 	if not row then
 		return
@@ -443,7 +473,7 @@ function ns.inspectReady(guid)
 	if unit then
 		record(row, gear(unit))
 	end
-	if ns.lookup("ClearInspectPlayer") then
+	if ns.lookup("ClearInspectPlayer") and not theirs and not playerInspecting() then
 		ns.api("ClearInspectPlayer")
 	end
 end
@@ -457,7 +487,7 @@ function ns.inspectQueued()
 end
 
 local function pump()
-	if ns.api("InCombatLockdown") then return end
+	if ns.api("InCombatLockdown") or playerInspecting() then return end
 	local guid = table.remove(queue, 1)
 	while guid and not waiting[guid] do
 		guid = table.remove(queue, 1)
@@ -470,8 +500,11 @@ local function pump()
 		waiting[guid], queued[guid] = nil, nil
 		return
 	end
+	ours = true
 	ns.api("NotifyInspect", unit)
+	ours = false
 end
+ns.pumpInspect = pump
 
 local function harvest(unit)
 	if not ns.api("UnitIsPlayer", unit) then
@@ -522,6 +555,14 @@ local function harvest(unit)
 	local worn = gear(unit)
 	if #worn > 0 or ns.api("UnitIsUnit", unit, "player") then
 		record(row, worn)
+		return
+	end
+	local last = inspected[guid]
+	if last and last.level == level and (row.at or 0) - last.at < INSPECT_EVERY then
+		local had = ns.db.people and ns.db.people[last.key]
+		if had and (row.at or 0) > (had.lastAt or had.at or 0) then
+			had.lastAt, had.lastAuras = row.at, row.auras
+		end
 		return
 	end
 	if queued[guid] or #queue >= 50 then

@@ -930,3 +930,64 @@ do
     UnitIsPlayer, GetServerTime, C_UnitAuras = oldIsPlayer, oldServer, oldAuras
     print("ok: a nearby player's level spans its sightings and carries its auras")
 end
+
+do
+    -- The client keeps one inspect target, and the player's Inspect window
+    -- reads it. The background queue must not inspect while that window is
+    -- open or before the player's own request is answered, must clear only
+    -- its own, and inspects a character again only after five minutes.
+    local old = { hooksecurefunc, NotifyInspect, ClearInspectPlayer, CanInspect, UnitIsVisible,
+        UnitIsPlayer, GetInventoryItemLink, GetTime, InspectFrame, GetServerTime }
+    local now, server, notified, cleared, shown = 2000, 1800000000, {}, 0, false
+    hooksecurefunc = function(name, after)
+        local original = _G[name]
+        _G[name] = function(...) local r = { original(...) }; after(...); return table.unpack(r) end
+    end
+    NotifyInspect = function(unit) notified[#notified + 1] = unit end
+    ClearInspectPlayer = function() cleared = cleared + 1 end
+    CanInspect = function() return true end
+    UnitIsVisible = function() return true end
+    UnitIsPlayer = function(unit) return unit == "player" or group[unit] ~= nil end
+    GetInventoryItemLink = function(unit, slot)
+        if unit ~= "player" then return nil end
+        return slot <= 3 and ("|cffa335ee|Hitem:1264" .. slot .. "::::::::30:::::|h[Test Item]|h|r") or nil
+    end
+    GetTime = function() return now end
+    GetServerTime = function() return server end
+    InspectFrame = { IsShown = function() return shown end }
+    local engine, d = run(function() fire("GROUP_ROSTER_UPDATE") end, nil, true)
+    -- The window is open: nothing is inspected behind it.
+    shown = true
+    engine.pumpInspect()
+    assert(#notified == 0, "the probe inspected while the player's Inspect window was open")
+    shown = false
+    -- The player inspects somebody: the queue waits for that answer only.
+    NotifyInspect("party2")
+    engine.pumpInspect()
+    assert(#notified == 1, "the probe inspected before the player's own request was answered")
+    fire("INSPECT_READY", "Player-1-CCCCCC")
+    assert(cleared == 0, "the probe cleared the inspect the player asked for")
+    engine.pumpInspect()
+    assert(#notified == 2 and notified[2] == "party1", "the queue waited past the player's answer")
+    fire("INSPECT_READY", "Player-1-BBBBBB")
+    assert(cleared == 1, "the probe left its own inspect open")
+    -- Seen again a minute later at the same level: not inspected again, and
+    -- the record's span still grows.
+    server = server + 60
+    fire("GROUP_ROSTER_UPDATE")
+    engine.pumpInspect()
+    assert(#notified == 2, "a character inspected a minute ago was inspected again")
+    local span
+    for _, p in pairs(d.people or {}) do
+        if p.guid == "Player-1-BBBBBB" then span = p end
+    end
+    assert(span and span.lastAt == server, "a sighting inside the cooldown did not extend the level's span")
+    -- Five minutes on, it is read again.
+    server = server + 300
+    fire("GROUP_ROSTER_UPDATE")
+    engine.pumpInspect()
+    assert(#notified == 3, "the cooldown never lets a character be read again")
+    hooksecurefunc, NotifyInspect, ClearInspectPlayer, CanInspect, UnitIsVisible,
+        UnitIsPlayer, GetInventoryItemLink, GetTime, InspectFrame, GetServerTime = table.unpack(old, 1, 10)
+    print("ok: inspects wait for the player's own, clear only their own, and repeat a character only every five minutes")
+end

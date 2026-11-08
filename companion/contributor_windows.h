@@ -182,7 +182,9 @@ static void contributor_progress_save(const char *path, uint64_t size, const cha
  * combat log open, and Windows leaves an open file's directory entry (the
  * size and time FindFirstFile reports) stale, so quiet is observed here. */
 typedef struct LogGrowth { char *path; uint64_t size; ULONGLONG since; struct LogGrowth *next; } LogGrowth;
-typedef struct { ULONGLONG next_poll, next_upload; SyncCache files; LogGrowth *growth; } ContributionLoop;
+/* `waiting` counts the logs the last pass held only because they were still
+ * growing or inside their quiet period. */
+typedef struct { ULONGLONG next_poll, next_upload; SyncCache files; LogGrowth *growth; int waiting; } ContributionLoop;
 static void contributor_loop_free(ContributionLoop *loop) {
     sync_cache_free(&loop->files);
     while (loop->growth) { LogGrowth *g = loop->growth; loop->growth = g->next; free(g->path); free(g); }
@@ -238,6 +240,7 @@ static FILE *contributor_spool(const char *dir) {
  * once per quiet period; otherwise the Simforever service takes appends. */
 static int contributor_logs(ContributionLoop *loop, const char *dir, const char *game, const char *secret, const char *custom, const char *display) {
     char *pattern = malloc(PATH_CAP), *path = malloc(PATH_CAP), *receipt = malloc(PATH_CAP); int pending = 0, sent = 0, seen = 0;
+    loop->waiting = 0;
     if (!pattern || !path || !receipt || addon_join(pattern, game, "Logs/WoWCombatLog*.txt")) { free(pattern); free(path); free(receipt); return 1; }
     wchar_t *w = wide_path(pattern); WIN32_FIND_DATAW data = {0}; HANDLE find = w ? FindFirstFileW(w, &data) : INVALID_HANDLE_VALUE; free(w);
     if (find != INVALID_HANDLE_VALUE) {
@@ -257,7 +260,7 @@ static int contributor_logs(ContributionLoop *loop, const char *dir, const char 
             if (contributor_true_size(path, &real)) { ++pending; continue; }
             int closed = real == size && modified <= now && now - modified >= CONTRIBUTOR_QUIET_MS * 10000u;
             ULONGLONG since = contributor_unchanged_since(loop, path, real, closed);
-            if (GetTickCount64() - since < CONTRIBUTOR_QUIET_MS) { ++pending; continue; }
+            if (GetTickCount64() - since < CONTRIBUTOR_QUIET_MS) { ++pending; ++loop->waiting; continue; }
             const char *digest = sync_hash(&loop->files, path);
             if (!digest || sync_info(path, &listed, &stamp) || listed != real) { ++pending; continue; }
             size = real;
